@@ -1,0 +1,3 @@
+all:
+	go test ./...
+	go test ./... -run=NONE -bench=. -benchmem
