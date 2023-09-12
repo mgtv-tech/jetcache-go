@@ -183,5 +183,7 @@ import (
 encoding.RegisterCodec(codec Codec)
 
 // Set your codec name
-cache.WithCodec(yourCodecName string)
+mycache := cache.New("any",
+    cache.WithRemote(...),
+    cache.WithCodec(yourCodecName string))
 ```
