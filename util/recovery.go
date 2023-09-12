@@ -4,7 +4,7 @@ import (
 	"runtime/debug"
 	"strings"
 
-	"github.com/jetcache-go/logger"
+	"github.com/daoshenzzg/jetcache-go/logger"
 )
 
 func WithRecover(fn func()) {

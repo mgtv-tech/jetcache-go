@@ -8,11 +8,11 @@ import (
 
 	"github.com/go-redis/redis/v8"
 
-	"github.com/jetcache-go"
-	"github.com/jetcache-go/local"
-	"github.com/jetcache-go/logger"
-	"github.com/jetcache-go/remote"
-	"github.com/jetcache-go/util"
+	"github.com/daoshenzzg/jetcache-go"
+	"github.com/daoshenzzg/jetcache-go/local"
+	"github.com/daoshenzzg/jetcache-go/logger"
+	"github.com/daoshenzzg/jetcache-go/remote"
+	"github.com/daoshenzzg/jetcache-go/util"
 )
 
 var errRecordNotFound = errors.New("mock gorm.errRecordNotFound")

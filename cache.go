@@ -13,10 +13,10 @@ import (
 	"golang.org/x/sync/semaphore"
 	"golang.org/x/sync/singleflight"
 
-	"github.com/jetcache-go/encoding"
-	"github.com/jetcache-go/logger"
-	"github.com/jetcache-go/stats"
-	"github.com/jetcache-go/util"
+	"github.com/daoshenzzg/jetcache-go/encoding"
+	"github.com/daoshenzzg/jetcache-go/logger"
+	"github.com/daoshenzzg/jetcache-go/stats"
+	"github.com/daoshenzzg/jetcache-go/util"
 )
 
 const (

@@ -1,4 +1,4 @@
-module github.com/jetcache-go
+module github.com/daoshenzzg/jetcache-go
 
 go 1.16
 

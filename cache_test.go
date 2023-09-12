@@ -14,10 +14,10 @@ import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 
-	"github.com/jetcache-go/local"
-	"github.com/jetcache-go/remote"
-	"github.com/jetcache-go/stats"
-	"github.com/jetcache-go/util"
+	"github.com/daoshenzzg/jetcache-go/local"
+	"github.com/daoshenzzg/jetcache-go/remote"
+	"github.com/daoshenzzg/jetcache-go/stats"
+	"github.com/daoshenzzg/jetcache-go/util"
 )
 
 var (
@@ -381,14 +381,14 @@ var _ = Describe("Cache", func() {
 					}})
 				Expect(err).NotTo(HaveOccurred())
 				Expect(value).To(Equal("V2"))
-				Expect(stat.Query).To(Equal(uint64(2)))
+				Expect(atomic.LoadUint64(&stat.Query)).To(Equal(uint64(2)))
 				Expect(cache.TaskSize()).To(Equal(2))
 
 				time.Sleep(refreshDuration + refreshDuration/2)
 				err = cache.Get(ctx, key1, &value)
 				Expect(err).NotTo(HaveOccurred())
 				Expect(value).To(Equal("V1"))
-				Expect(stat.Query).To(Equal(uint64(4)))
+				Expect(atomic.LoadUint64(&stat.Query)).To(Equal(uint64(4)))
 				Expect(cache.TaskSize()).To(Equal(2))
 
 				time.Sleep(refreshDuration + time.Millisecond)
@@ -402,7 +402,7 @@ var _ = Describe("Cache", func() {
 
 				time.Sleep(refreshDuration)
 				Expect(cache.TaskSize()).To(Equal(0))
-				Expect(stat.Query).To(Equal(uint64(4)))
+				Expect(atomic.LoadUint64(&stat.Query)).To(Equal(uint64(4)))
 			})
 		})
 	}

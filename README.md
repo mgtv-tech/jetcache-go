@@ -42,11 +42,11 @@ import (
 
 	"github.com/go-redis/redis/v8"
 
-	"github.com/jetcache-go"
-	"github.com/jetcache-go/local"
-	"github.com/jetcache-go/logger"
-	"github.com/jetcache-go/remote"
-	"github.com/jetcache-go/util"
+	"github.com/daoshenzzg/jetcache-go"
+	"github.com/daoshenzzg/jetcache-go/local"
+	"github.com/daoshenzzg/jetcache-go/logger"
+	"github.com/daoshenzzg/jetcache-go/remote"
+	"github.com/daoshenzzg/jetcache-go/util"
 )
 
 var errRecordNotFound = errors.New("mock gorm.errRecordNotFound")
@@ -166,7 +166,7 @@ bench_remote|        5153|      95.03%|        4897|         256|           -|  
 
 ### Custom Logger
 ```go
-import "github.com/jetcache-go/logger"
+import "github.com/daoshenzzg/jetcache-go/logger"
 
 // Set your Logger
 logger.SetDefaultLogger(l logger.Logger)
@@ -175,8 +175,8 @@ logger.SetDefaultLogger(l logger.Logger)
 ### Custom Encoding and Decoding
 ```go
 import (
-    "github.com/jetcache-go"
-    "github.com/jetcache-go/encoding"
+    "github.com/daoshenzzg/jetcache-go"
+    "github.com/daoshenzzg/jetcache-go/encoding"
 )
 
 // Register your codec

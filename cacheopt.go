@@ -3,10 +3,10 @@ package cache
 import (
 	"time"
 
-	"github.com/jetcache-go/encoding/msgpack"
-	"github.com/jetcache-go/local"
-	"github.com/jetcache-go/remote"
-	"github.com/jetcache-go/stats"
+	"github.com/daoshenzzg/jetcache-go/encoding/msgpack"
+	"github.com/daoshenzzg/jetcache-go/local"
+	"github.com/daoshenzzg/jetcache-go/remote"
+	"github.com/daoshenzzg/jetcache-go/stats"
 )
 
 const (

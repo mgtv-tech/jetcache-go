@@ -11,10 +11,10 @@ import (
 
 	"github.com/go-redis/redis/v8"
 
-	"github.com/jetcache-go/local"
-	"github.com/jetcache-go/logger"
-	"github.com/jetcache-go/remote"
-	"github.com/jetcache-go/stats"
+	"github.com/daoshenzzg/jetcache-go/local"
+	"github.com/daoshenzzg/jetcache-go/logger"
+	"github.com/daoshenzzg/jetcache-go/remote"
+	"github.com/daoshenzzg/jetcache-go/stats"
 )
 
 var (
