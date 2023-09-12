@@ -174,7 +174,7 @@ logger.SetDefaultLogger(l logger.Logger)
 ```go
 import (
     "github.com/jetcache-go"
-	"github.com/jetcache-go/encoding"
+    "github.com/jetcache-go/encoding"
 )
 
 // Register your codec
