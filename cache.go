@@ -70,9 +70,9 @@ type (
 		name           string
 		group          singleflight.Group
 		rand           *rand.Rand
-		offset         time.Duration // 未命中key过期时间抖动因子
-		refreshTaskMap sync.Map      // 异步刷新缓存任务集合<key, RefreshTask>
-		stopChan       chan struct{} // 关闭信号
+		offset         time.Duration // Expiration time jitter factor for cache misses
+		refreshTaskMap sync.Map      // Collection of asynchronous cache refresh tasks <key, RefreshTask>
+		stopChan       chan struct{} // Close signal
 	}
 )
 
