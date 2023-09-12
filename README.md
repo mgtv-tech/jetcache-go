@@ -20,6 +20,7 @@ Translate to: [简体中文](README_zh.md)
 - ✅ You can customize the errNotFound error and use placeholders to prevent cache penetration by caching empty results.
 - ✅ Supports asynchronous refreshing of distributed caches.
 - ✅ Metrics collection: By default, it prints statistical metrics (QPM, Hit, Miss, Query, QueryFail) through logs.
+- ✅ Automatic degradation of centralized cache query failures.
 
 # Installation
 To start using the latest version of jetcache-go, you can import the library into your project:
@@ -138,7 +139,7 @@ func Example_advancedUsage() {
 type Options struct {
     remote                     remote.Remote // Remote cache.
     local                      local.Local   // Local cache.
-    codec                      string        // Value encoding and decoding method. Default is "json.Name" or "msgpack.Name". You can also customize it.
+    codec                      string        // Value encoding and decoding method. Default is "msgpack.Name". You can also customize it.
     errNotFound                error         // Error to return for cache miss. Used to prevent cache penetration.
     notFoundExpiry             time.Duration // Duration for placeholder cache when there is a cache miss. Default is 1 minute.
     refreshDuration            time.Duration // Interval for asynchronous cache refresh. Default is 0 (refresh is disabled).
@@ -150,10 +151,11 @@ type Options struct {
 ```
 
 ### Cache metrics collection and statistics.
-You can implement the `stats.Handler` interface and register it with the Cache component. We have provided a default
-implementation that logs the statistical metrics, as shown below:
+You can implement the `stats.Handler` interface and register it with the Cache component to customize metric collection, 
+for example, using [Prometheus](https://github.com/prometheus/client_golang) to collect metrics. We have provided a 
+default implementation that logs the statistical metrics, as shown below:
 ```shell
-2023/09/11 16:42:30.695294 statslogger.go:178: [INFO] jetcache-go stats last 1 minute.
+2023/09/11 16:42:30.695294 statslogger.go:178: [INFO] jetcache-go stats last 1m0s.
 cache       |         qpm|   hit_ratio|         hit|        miss|       query|  query_fail
 ------------+------------+------------+------------+------------+------------+------------
 bench       |   216440123|     100.00%|   216439867|         256|         256|           0|

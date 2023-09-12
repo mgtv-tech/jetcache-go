@@ -13,11 +13,12 @@ Translations: [English](README.md) | [简体中文](README_zh.md)
 - ✅ 二级缓存自由组合：本地缓存、集中缓存、本地缓存+集中缓存
 - ✅ Once接口采用单飞(`singleflight`)模式，高并发且线程安全
 - ✅ 默认采用[MsgPack](https://github.com/vmihailenco/msgpack)来编解码Value
-- ✅ 本地缓存默认实现了[TinyLFU](https://github.com/dgryski/go-tinylfu)和[FreeCache](https://github.com/coocood/freecache)，你也可以自定义实现
+- ✅ 本地缓存默认实现了[TinyLFU](https://github.com/dgryski/go-tinylfu)和[FreeCache](https://github.com/coocood/freecache)
 - ✅ 集中缓存默认实现了[go-redis/v8](https://github.com/redis/go-redis)的适配器，你也可以自定义实现
 - ✅ 可以自定义`errNotFound`，通过占位符替换，缓存空结果防止缓存穿透
 - ✅ 支持开启分布式缓存异步刷新
 - ✅ 指标采集，默认实现了通过日志打印各级缓存的统计指标（QPM、Hit、Miss、Query、QueryFail）
+- ✅ 集中缓存查询故障自动降级
 
 # 安装
 使用最新版本的jetcache-go，您可以在项目中导入该库：
@@ -149,9 +150,10 @@ type Options struct {
 ```
 
 ### 缓存指标收集和统计
-您可以实现`stats.Handler`接口并注册到Cache组件来自定义收集指标，例如采集到[Prometheus](https://github.com/prometheus/client_golang)。我们默认实现了通过日志打印统计指标，如下所示：
+您可以实现`stats.Handler`接口并注册到Cache组件来自定义收集指标，例如使用[Prometheus](https://github.com/prometheus/client_golang)
+采集指标。我们默认实现了通过日志打印统计指标，如下所示：
 ```shell
-2023/09/11 16:42:30.695294 statslogger.go:178: [INFO] jetcache-go stats last 1 minute.
+2023/09/11 16:42:30.695294 statslogger.go:178: [INFO] jetcache-go stats last 1m0s.
 cache       |         qpm|   hit_ratio|         hit|        miss|       query|  query_fail
 ------------+------------+------------+------------+------------+------------+------------
 bench       |   216440123|     100.00%|   216439867|         256|         256|           0|
