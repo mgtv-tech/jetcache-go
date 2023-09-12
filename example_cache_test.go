@@ -32,7 +32,7 @@ func mockDBGetObject(id int) (*object, error) {
 func Example_basicUsage() {
 	ring := redis.NewRing(&redis.RingOptions{
 		Addrs: map[string]string{
-			"server1": ":6379",
+			"localhost": ":6379",
 		},
 	})
 
@@ -68,7 +68,7 @@ func Example_advancedUsage() {
 
 	ring := redis.NewRing(&redis.RingOptions{
 		Addrs: map[string]string{
-			"server1": ":6379",
+			"localhost": ":6379",
 		},
 	})
 
