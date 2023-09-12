@@ -13,6 +13,7 @@ import (
 	"github.com/go-redis/redis/v8"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+	"github.com/stretchr/testify/assert"
 
 	"github.com/daoshenzzg/jetcache-go/local"
 	"github.com/daoshenzzg/jetcache-go/remote"
@@ -120,7 +121,7 @@ var _ = Describe("Cache", func() {
 			Expect(cache.Exists(ctx, key)).To(BeFalse())
 		})
 
-		It("SetXX", func() {
+		It("SetXxNx", func() {
 			if cache.CacheType() == TypeRemote {
 				err := cache.Set(&Item{
 					Key:   key,
@@ -129,9 +130,17 @@ var _ = Describe("Cache", func() {
 					SetXX: true,
 				})
 				Expect(err).NotTo(HaveOccurred())
-
 				err = cache.Get(ctx, key, nil)
 				Expect(err).To(Equal(ErrCacheMiss))
+
+				err = cache.Set(&Item{
+					Key:   key,
+					TTL:   time.Hour,
+					Value: obj,
+					SetNX: true,
+				})
+				Expect(err).NotTo(HaveOccurred())
+				Expect(cache.Exists(ctx, key)).To(BeTrue())
 			}
 		})
 
@@ -452,6 +461,22 @@ var _ = Describe("Cache", func() {
 	}
 })
 
+func TestRemoteLocalBothNil(t *testing.T) {
+	cache := New("any")
+	err := cache.Get(context.TODO(), "key", nil)
+	assert.Equal(t, ErrRemoteLocalBothNil, err)
+	err = cache.Delete(context.TODO(), "key")
+	assert.Equal(t, ErrRemoteLocalBothNil, err)
+	err = cache.Set(&Item{
+		Ctx: context.TODO(),
+		Key: "key1",
+		Do: func(item *Item) (interface{}, error) {
+			return "value1", nil
+		},
+	})
+	assert.Equal(t, ErrRemoteLocalBothNil, err)
+}
+
 func newRdb() *redis.Client {
 	s, err := miniredis.Run()
 	if err != nil {
@@ -502,7 +527,7 @@ func localNew(localType localType) local.Local {
 	}
 }
 
-//------------------------------------------------------------------------------
+// ------------------------------------------------------------------------------
 func (s *testState) IncrHit() {
 }
 
