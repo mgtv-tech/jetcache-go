@@ -1,4 +1,4 @@
-<p align="center">
+<p>
 <a href="https://github.com/daoshenzzg/jetcache-go/actions"><img src="https://github.com/daoshenzzg/jetcache-go/workflows/Go/badge.svg" alt="Build Status"></a>
 <a href="https://codecov.io/gh/daoshenzzg/jetcache-go"><img src="https://codecov.io/gh/daoshenzzg/jetcache-go/master/graph/badge.svg" alt="codeCov"></a>
 <a href="https://github.com/daoshenzzg/jetcache-go/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-green" alt="License"></a>
@@ -16,7 +16,7 @@ including:
 - ✅ The Once interface adopts the `singleflight` pattern, which is highly concurrent and thread-safe.
 - ✅ By default, [MsgPack](https://github.com/vmihailenco/msgpack) is used for encoding and decoding values.
 - ✅ The default local cache implementation includes [TinyLFU](https://github.com/dgryski/go-tinylfu) and [FreeCache](https://github.com/coocood/freecache).
-- ✅ The default centralized cache implementation is based on [go-redis/v8](https://github.com/redis/go-redis).
+- ✅ The default centralized cache implementation is based on [go-redis/v8](https://github.com/redis/go-redis), and you can also customize your own implementation.
 - ✅ You can customize the errNotFound error and use placeholders to prevent cache penetration by caching empty results.
 - ✅ Supports asynchronous refreshing of distributed caches.
 - ✅ Metrics collection: By default, it prints statistical metrics (QPM, Hit, Miss, Query, QueryFail) through logs.
@@ -160,4 +160,26 @@ bench       |   216440123|     100.00%|   216439867|         256|         256|  
 bench_local |   216440123|     100.00%|   216434970|        5153|           -|           -|
 bench_remote|        5153|      95.03%|        4897|         256|           -|           -|
 ------------+------------+------------+------------+------------+------------+------------
+```
+
+### Custom Logger
+```go
+import "github.com/jetcache-go/logger"
+
+// Set your Logger
+logger.SetDefaultLogger(l logger.Logger)
+```
+
+### Custom Encoding and Decoding
+```go
+import (
+    "github.com/jetcache-go"
+	"github.com/jetcache-go/encoding"
+)
+
+// Register your codec
+encoding.RegisterCodec(codec Codec)
+
+// Set your codec name
+cache.WithCodec(yourCodecName string)
 ```
