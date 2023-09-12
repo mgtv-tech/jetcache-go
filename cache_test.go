@@ -17,6 +17,7 @@ import (
 	"github.com/jetcache-go/local"
 	"github.com/jetcache-go/remote"
 	"github.com/jetcache-go/stats"
+	"github.com/jetcache-go/util"
 )
 
 var (
@@ -28,7 +29,7 @@ const (
 	freeCache localType = 1
 	tinyLFU   localType = 2
 
-	localExpire                = 6 * time.Millisecond
+	localExpire                = 8 * time.Millisecond
 	refreshDuration            = 10 * time.Millisecond
 	stopRefreshAfterLastAccess = 2 * refreshDuration
 )
@@ -340,13 +341,11 @@ var _ = Describe("Cache", func() {
 					Expect(exists).To(Equal(int64(0)))
 				}
 			})
-		})
 
-		Describe("Refresh func", func() {
 			It("Cache Refresh", func() {
 				var (
-					key1  = fmt.Sprintf("%v_%s", cache.CacheType(), "K1")
-					key2  = fmt.Sprintf("%v_%s", cache.CacheType(), "K2")
+					key1  = util.JoinAny(":", cache.CacheType(), "K1")
+					key2  = util.JoinAny(":", cache.CacheType(), "K2")
 					value string
 					err   error
 				)
