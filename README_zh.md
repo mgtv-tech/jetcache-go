@@ -132,7 +132,7 @@ func Example_advancedUsage() {
 }
 ```
 
-### Configure settings
+### 配置选项
 ```go
 // Options are used to store cache options.
 type Options struct {
