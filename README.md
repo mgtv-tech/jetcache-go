@@ -9,8 +9,8 @@ Translate to: [简体中文](README_zh.md)
 
 # Introduction
 [jetcache-go](https://github.com/daoshenzzg/jetcache-go) is a general-purpose cache access framework based on
-[go-redis/cache](https://github.com/go-redis/cache). It implements the core features of the Java version of JetCache,
-including:
+[go-redis/cache](https://github.com/go-redis/cache). It implements the core features of the Java version of 
+[JetCache](https://github.com/alibaba/jetcache), including:
 
 - ✅ Flexible combination of two-level caching: You can use memory, Redis, or your own custom storage method.
 - ✅ The Once interface adopts the `singleflight` pattern, which is highly concurrent and thread-safe.
