@@ -129,7 +129,7 @@ func (s *Stats) logStatSummary() {
 		lenStr = strconv.Itoa(length)
 	)
 
-	b.WriteString("jetcache-go stats last 1 minute.\n")
+	b.WriteString(fmt.Sprintf("jetcache-go stats last %v.\n", s.statsInterval))
 	// -----Header start------
 	title := fmt.Sprintf("%-"+lenStr+"s|%12s|%12s|%12s|%12s|%12s|%12s", "cache", "qpm", "hit_ratio", "hit", "miss", "query", "query_fail")
 	b.WriteString(title)
