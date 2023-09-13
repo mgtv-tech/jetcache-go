@@ -470,15 +470,15 @@ var _ = Describe("Cache", func() {
 			testCache()
 		})
 
-		//Context(fmt.Sprintf("with only local(%v)", typ), func() {
-		//	BeforeEach(func() {
-		//		stat = &testState{}
-		//		rdb = nil
-		//		cache = newLocal(typ, stat)
-		//	})
-		//
-		//	testCache()
-		//})
+		Context(fmt.Sprintf("with only local(%v)", typ), func() {
+			BeforeEach(func() {
+				stat = &testState{}
+				rdb = nil
+				cache = newLocal(typ, stat)
+			})
+
+			testCache()
+		})
 	}
 })
 
