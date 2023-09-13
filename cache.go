@@ -15,7 +15,6 @@ import (
 
 	"github.com/daoshenzzg/jetcache-go/encoding"
 	"github.com/daoshenzzg/jetcache-go/logger"
-	"github.com/daoshenzzg/jetcache-go/stats"
 	"github.com/daoshenzzg/jetcache-go/util"
 )
 
@@ -36,29 +35,26 @@ var (
 type Cache struct {
 	sync.Mutex
 	Options
-	name           string
 	group          singleflight.Group
 	rand           *rand.Rand
 	refreshTaskMap sync.Map
 	stopChan       chan struct{}
 }
 
-func New(name string, opts ...Option) *Cache {
+func New(opts ...Option) *Cache {
 	o := newOptions(opts...)
 	cache := &Cache{
-		name:     name,
 		Options:  o,
 		rand:     rand.New(rand.NewSource(time.Now().UnixNano())),
 		stopChan: make(chan struct{}),
 	}
-	if cache.statsHandler == nil {
-		cache.statsHandler = stats.NewHandles(cache.statsDisabled, stats.NewStatsLogger(cache.name))
-	}
+
 	if cache.refreshDuration > 0 {
 		go util.WithRecover(func() {
 			cache.tick()
 		})
 	}
+
 	return cache
 }
 

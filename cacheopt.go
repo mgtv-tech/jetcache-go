@@ -10,8 +10,9 @@ import (
 )
 
 const (
-	defaultNotFoundExpiry     = time.Minute
+	defaultName               = "default"
 	defaultRefreshConcurrency = 4
+	defaultNotFoundExpiry     = time.Minute
 	defaultCodec              = msgpack.Name
 	maxOffset                 = 10 * time.Second
 )
@@ -19,6 +20,7 @@ const (
 type (
 	// Options are used to store cache options.
 	Options struct {
+		name                       string        // Cache name, used for log identification and metric reporting
 		remote                     remote.Remote // Remote cache.
 		local                      local.Local   // Local cache.
 		codec                      string        // Value encoding and decoding method. Default is "json.Name" or "msgpack.Name". You can also customize it.
@@ -41,7 +43,9 @@ func newOptions(opts ...Option) Options {
 	for _, opt := range opts {
 		opt(&o)
 	}
-
+	if o.name == "" {
+		o.name = defaultName
+	}
 	if o.codec == "" {
 		o.codec = defaultCodec
 	}
@@ -60,7 +64,17 @@ func newOptions(opts ...Option) Options {
 	if o.stopRefreshAfterLastAccess <= 0 {
 		o.stopRefreshAfterLastAccess = o.refreshDuration + time.Second
 	}
+	if o.statsHandler == nil {
+		o.statsHandler = stats.NewHandles(o.statsDisabled, stats.NewStatsLogger(o.name))
+	}
+
 	return o
+}
+
+func WithName(name string) Option {
+	return func(o *Options) {
+		o.name = name
+	}
 }
 
 func WithRemote(remote remote.Remote) Option {

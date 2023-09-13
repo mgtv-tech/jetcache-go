@@ -12,7 +12,17 @@ import (
 func TestCacheOptions(t *testing.T) {
 	t.Run("default options", func(t *testing.T) {
 		o := newOptions()
+		assert.Equal(t, defaultName, o.name)
 		assert.Equal(t, defaultNotFoundExpiry, o.notFoundExpiry)
+		assert.Equal(t, defaultNotFoundExpiry/10, o.offset)
+		assert.Equal(t, defaultRefreshConcurrency, o.refreshConcurrency)
+		assert.Equal(t, defaultCodec, o.codec)
+		assert.NotNil(t, o.statsHandler)
+	})
+
+	t.Run("with name", func(t *testing.T) {
+		o := newOptions(WithName("any"))
+		assert.Equal(t, "any", o.name)
 		assert.Equal(t, defaultNotFoundExpiry/10, o.offset)
 		assert.Equal(t, defaultRefreshConcurrency, o.refreshConcurrency)
 		assert.Equal(t, defaultCodec, o.codec)

@@ -14,7 +14,6 @@ import (
 	"github.com/daoshenzzg/jetcache-go/local"
 	"github.com/daoshenzzg/jetcache-go/logger"
 	"github.com/daoshenzzg/jetcache-go/remote"
-	"github.com/daoshenzzg/jetcache-go/stats"
 )
 
 var (
@@ -209,15 +208,14 @@ func newRefreshBoth() *Cache {
 	tInit()
 
 	newOnce.Do(func() {
-		name := "both"
-		asyncCache = New(name,
+		name := "bench"
+		asyncCache = New(WithName(name),
 			WithRemote(remote.NewGoRedisV8Adaptor(rdb)),
 			WithLocal(local.NewFreeCache(256*local.MB, 3*time.Second)),
 			WithErrNotFound(errTestNotFound),
 			WithRefreshDuration(2*time.Second),
 			WithStopRefreshAfterLastAccess(3*time.Second),
-			WithRefreshConcurrency(1000),
-			WithStatsHandler(stats.NewStatsLogger("bench")))
+			WithRefreshConcurrency(1000))
 	})
 	return asyncCache
 }

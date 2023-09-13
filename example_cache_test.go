@@ -36,7 +36,7 @@ func Example_basicUsage() {
 		},
 	})
 
-	mycache := cache.New("basicUsage",
+	mycache := cache.New(cache.WithName("any"),
 		cache.WithRemote(remote.NewGoRedisV8Adaptor(ring)),
 		cache.WithLocal(local.NewFreeCache(256*local.MB, time.Minute)),
 		cache.WithErrNotFound(errRecordNotFound))
@@ -72,7 +72,7 @@ func Example_advancedUsage() {
 		},
 	})
 
-	mycache := cache.New("advancedUsage",
+	mycache := cache.New(cache.WithName("any"),
 		cache.WithRemote(remote.NewGoRedisV8Adaptor(ring)),
 		cache.WithLocal(local.NewFreeCache(256*local.MB, time.Minute)),
 		cache.WithErrNotFound(errRecordNotFound),
