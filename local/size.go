@@ -1,6 +1,6 @@
 package local
 
-type Size int
+type Size int64
 
 const (
 	Byte Size = 1
