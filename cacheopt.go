@@ -13,6 +13,7 @@ const (
 	defaultNotFoundExpiry     = time.Minute
 	defaultRefreshConcurrency = 4
 	defaultCodec              = msgpack.Name
+	maxOffset                 = 10 * time.Second
 )
 
 type (
@@ -23,6 +24,7 @@ type (
 		codec                      string        // Value encoding and decoding method. Default is "json.Name" or "msgpack.Name". You can also customize it.
 		errNotFound                error         // Error to return for cache miss. Used to prevent cache penetration.
 		notFoundExpiry             time.Duration // Duration for placeholder cache when there is a cache miss. Default is 1 minute.
+		offset                     time.Duration // Expiration time jitter factor for cache misses
 		refreshDuration            time.Duration // Interval for asynchronous cache refresh. Default is 0 (refresh is disabled).
 		stopRefreshAfterLastAccess time.Duration // Duration for cache to stop refreshing after no access. Default is refreshDuration + 1 second.
 		refreshConcurrency         int           // Maximum number of concurrent cache refreshes. Default is 4.
@@ -45,6 +47,12 @@ func newOptions(opts ...Option) Options {
 	}
 	if o.notFoundExpiry <= 0 {
 		o.notFoundExpiry = defaultNotFoundExpiry
+	}
+	if o.offset <= 0 {
+		o.offset = o.notFoundExpiry / 10
+	}
+	if o.offset > maxOffset {
+		o.offset = maxOffset
 	}
 	if o.refreshConcurrency <= 0 {
 		o.refreshConcurrency = defaultRefreshConcurrency
@@ -79,6 +87,18 @@ func WithErrNotFound(err error) Option {
 	}
 }
 
+func WithNotFoundExpiry(notFoundExpiry time.Duration) Option {
+	return func(o *Options) {
+		o.notFoundExpiry = notFoundExpiry
+	}
+}
+
+func WithOffset(offset time.Duration) Option {
+	return func(o *Options) {
+		o.offset = offset
+	}
+}
+
 func WithRefreshDuration(refreshDuration time.Duration) Option {
 	return func(o *Options) {
 		o.refreshDuration = refreshDuration
@@ -100,12 +120,6 @@ func WithRefreshConcurrency(refreshConcurrency int) Option {
 func WithStatsHandler(handler stats.Handler) Option {
 	return func(o *Options) {
 		o.statsHandler = handler
-	}
-}
-
-func WithNotFoundExpiry(notFoundExpiry time.Duration) Option {
-	return func(o *Options) {
-		o.notFoundExpiry = notFoundExpiry
 	}
 }
 

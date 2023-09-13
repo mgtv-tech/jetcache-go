@@ -13,14 +13,26 @@ func TestCacheOptions(t *testing.T) {
 	t.Run("default options", func(t *testing.T) {
 		o := newOptions()
 		assert.Equal(t, defaultNotFoundExpiry, o.notFoundExpiry)
+		assert.Equal(t, defaultNotFoundExpiry/10, o.offset)
 		assert.Equal(t, defaultRefreshConcurrency, o.refreshConcurrency)
 		assert.Equal(t, defaultCodec, o.codec)
 	})
 
 	t.Run("with not found expiry", func(t *testing.T) {
 		o := newOptions(WithNotFoundExpiry(time.Second))
+		assert.Equal(t, time.Second/10, o.offset)
 		assert.Equal(t, defaultRefreshConcurrency, o.refreshConcurrency)
 		assert.Equal(t, defaultCodec, o.codec)
+	})
+
+	t.Run("with offset", func(t *testing.T) {
+		o := newOptions(WithOffset(time.Second))
+		assert.Equal(t, time.Second, o.offset)
+	})
+
+	t.Run("with max offset", func(t *testing.T) {
+		o := newOptions(WithOffset(30 * time.Second))
+		assert.Equal(t, maxOffset, o.offset)
 	})
 
 	t.Run("with refresh concurrency", func(t *testing.T) {

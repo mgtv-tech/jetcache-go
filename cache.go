@@ -28,68 +28,29 @@ const (
 )
 
 var (
-	_ Cache = (*jetCache)(nil)
-
 	NotFoundPlaceholder   = []byte("*")
 	ErrCacheMiss          = errors.New("cache: key is missing")
 	ErrRemoteLocalBothNil = errors.New("cache: both remote and local are nil")
 )
 
-type (
-	// Cache interface is used to define the cache implementation.
-	Cache interface {
-		// Set sets the cache with Item
-		Set(item *Item) error
-		// Once gets the item.Value for the given item.Key from the cache or
-		// executes, caches, and returns the results of the given item.Func,
-		// making sure that only one execution is in-flight for a given item.Key
-		// at a time. If a duplicate comes in, the duplicate caller waits for the
-		// original to complete and receives the same results.
-		Once(item *Item) error
-		// Delete deletes cached val with key.
-		Delete(ctx context.Context, key string) error
-		// DeleteFromLocalCache deletes local cached val with key.
-		DeleteFromLocalCache(key string)
-		// Exists reports whether val for the given key exists.
-		Exists(ctx context.Context, key string) bool
-		// Get gets the val for the given key and fills into val.
-		Get(ctx context.Context, key string, val interface{}) error
-		// GetSkippingLocal gets the val for the given key skipping local cache.
-		GetSkippingLocal(ctx context.Context, key string, val interface{}) error
-		// TaskSize returns Refresh task size.
-		TaskSize() int
-		// CacheType returns cache type
-		CacheType() string
-		// Close stop refresh tasks
-		Close()
-	}
+type Cache struct {
+	sync.Mutex
+	Options
+	name           string
+	group          singleflight.Group
+	rand           *rand.Rand
+	refreshTaskMap sync.Map
+	stopChan       chan struct{}
+}
 
-	jetCache struct {
-		sync.Mutex
-		Options
-		name           string
-		group          singleflight.Group
-		rand           *rand.Rand
-		offset         time.Duration // Expiration time jitter factor for cache misses
-		refreshTaskMap sync.Map      // Collection of asynchronous cache refresh tasks <key, RefreshTask>
-		stopChan       chan struct{} // Close signal
-	}
-)
-
-func New(name string, opts ...Option) Cache {
-	const maxOffset = 10 * time.Second
+func New(name string, opts ...Option) *Cache {
 	o := newOptions(opts...)
-	cache := &jetCache{
+	cache := &Cache{
 		name:     name,
 		Options:  o,
 		rand:     rand.New(rand.NewSource(time.Now().UnixNano())),
 		stopChan: make(chan struct{}),
 	}
-	offset := cache.notFoundExpiry / 10
-	if offset > maxOffset {
-		offset = maxOffset
-	}
-	cache.offset = offset
 	if cache.statsHandler == nil {
 		cache.statsHandler = stats.NewHandles(cache.statsDisabled, stats.NewStatsLogger(cache.name))
 	}
@@ -101,18 +62,19 @@ func New(name string, opts ...Option) Cache {
 	return cache
 }
 
-func (c *jetCache) Set(item *Item) error {
+// Set sets the cache with Item
+func (c *Cache) Set(item *Item) error {
 	_, _, err := c.set(item)
 	return err
 }
 
-func (c *jetCache) set(item *Item) ([]byte, bool, error) {
+func (c *Cache) set(item *Item) ([]byte, bool, error) {
 	val, err := item.value()
 	if item.Do != nil {
 		c.statsHandler.IncrQuery()
 	}
 
-	if c.isNotFound(err) {
+	if c.IsNotFound(err) {
 		if e := c.setNotFound(item.Context(), item.Key, item.SkipLocal); e != nil {
 			logger.Error("setNotFound error(%v)", err)
 		}
@@ -154,20 +116,23 @@ func (c *jetCache) set(item *Item) ([]byte, bool, error) {
 	return b, true, c.remote.SetEX(item.Context(), item.Key, b, ttl)
 }
 
-func (c *jetCache) Exists(ctx context.Context, key string) bool {
+// Exists reports whether val for the given key exists.
+func (c *Cache) Exists(ctx context.Context, key string) bool {
 	_, err := c.getBytes(ctx, key, false)
 	return err == nil
 }
 
-func (c *jetCache) Get(ctx context.Context, key string, val interface{}) error {
+// Get gets the val for the given key and fills into val.
+func (c *Cache) Get(ctx context.Context, key string, val interface{}) error {
 	return c.get(ctx, key, val, false)
 }
 
-func (c *jetCache) GetSkippingLocal(ctx context.Context, key string, val interface{}) error {
+// GetSkippingLocal gets the val for the given key skipping local cache.
+func (c *Cache) GetSkippingLocal(ctx context.Context, key string, val interface{}) error {
 	return c.get(ctx, key, val, true)
 }
 
-func (c *jetCache) get(ctx context.Context, key string, val interface{}, skipLocal bool) error {
+func (c *Cache) get(ctx context.Context, key string, val interface{}, skipLocal bool) error {
 	b, err := c.getBytes(ctx, key, skipLocal)
 	if err != nil {
 		return err
@@ -176,7 +141,7 @@ func (c *jetCache) get(ctx context.Context, key string, val interface{}, skipLoc
 	return c.Unmarshal(b, val)
 }
 
-func (c *jetCache) getBytes(ctx context.Context, key string, skipLocal bool) ([]byte, error) {
+func (c *Cache) getBytes(ctx context.Context, key string, skipLocal bool) ([]byte, error) {
 	if !skipLocal && c.local != nil {
 		b, ok := c.local.Get(key)
 		if ok {
@@ -223,7 +188,12 @@ func (c *jetCache) getBytes(ctx context.Context, key string, skipLocal bool) ([]
 	return b, nil
 }
 
-func (c *jetCache) Once(item *Item) error {
+// Once gets the item.Value for the given item.Key from the cache or
+// executes, caches, and returns the results of the given item.Func,
+// making sure that only one execution is in-flight for a given item.Key
+// at a time. If a duplicate comes in, the duplicate caller waits for the
+// original to complete and receives the same results.
+func (c *Cache) Once(item *Item) error {
 	c.addOrUpdateRefreshTask(item)
 
 	b, cached, err := c.getSetItemBytesOnce(item)
@@ -250,7 +220,7 @@ func (c *jetCache) Once(item *Item) error {
 	return nil
 }
 
-func (c *jetCache) getSetItemBytesOnce(item *Item) (b []byte, cached bool, err error) {
+func (c *Cache) getSetItemBytesOnce(item *Item) (b []byte, cached bool, err error) {
 	if c.local != nil {
 		b, ok := c.local.Get(item.Key)
 		if ok {
@@ -287,7 +257,8 @@ func (c *jetCache) getSetItemBytesOnce(item *Item) (b []byte, cached bool, err e
 	return v.([]byte), cached, nil
 }
 
-func (c *jetCache) Delete(ctx context.Context, key string) error {
+// Delete deletes cached val with key.
+func (c *Cache) Delete(ctx context.Context, key string) error {
 	if c.local != nil {
 		c.local.Del(key)
 	}
@@ -304,13 +275,14 @@ func (c *jetCache) Delete(ctx context.Context, key string) error {
 	return err
 }
 
-func (c *jetCache) DeleteFromLocalCache(key string) {
+// DeleteFromLocalCache deletes local cached val with key.
+func (c *Cache) DeleteFromLocalCache(key string) {
 	if c.local != nil {
 		c.local.Del(key)
 	}
 }
 
-func (c *jetCache) isNotFound(err error) bool {
+func (c *Cache) IsNotFound(err error) bool {
 	if err == nil {
 		return false
 	}
@@ -318,7 +290,7 @@ func (c *jetCache) isNotFound(err error) bool {
 	return errors.Is(err, c.errNotFound)
 }
 
-func (c *jetCache) setNotFound(ctx context.Context, key string, skipLocal bool) error {
+func (c *Cache) setNotFound(ctx context.Context, key string, skipLocal bool) error {
 	if c.local != nil && !skipLocal {
 		c.local.Set(key, NotFoundPlaceholder)
 	}
@@ -335,7 +307,7 @@ func (c *jetCache) setNotFound(ctx context.Context, key string, skipLocal bool) 
 	return c.remote.SetEX(ctx, key, NotFoundPlaceholder, ttl)
 }
 
-func (c *jetCache) Marshal(val interface{}) ([]byte, error) {
+func (c *Cache) Marshal(val interface{}) ([]byte, error) {
 	switch val := val.(type) {
 	case nil:
 		return nil, nil
@@ -348,7 +320,7 @@ func (c *jetCache) Marshal(val interface{}) ([]byte, error) {
 	return encoding.GetCodec(c.codec).Marshal(val)
 }
 
-func (c *jetCache) Unmarshal(b []byte, val interface{}) error {
+func (c *Cache) Unmarshal(b []byte, val interface{}) error {
 	if len(b) == 0 {
 		return nil
 	}
@@ -369,12 +341,14 @@ func (c *jetCache) Unmarshal(b []byte, val interface{}) error {
 	return encoding.GetCodec(c.codec).Unmarshal(b, val)
 }
 
-func (c *jetCache) Close() {
+// Close stop refresh tasks
+func (c *Cache) Close() {
 	c.stopRefresh()
 	close(c.stopChan)
 }
 
-func (c *jetCache) TaskSize() (size int) {
+// TaskSize returns Refresh task size.
+func (c *Cache) TaskSize() (size int) {
 	c.refreshTaskMap.Range(func(key, val interface{}) bool {
 		size++
 		return true
@@ -382,7 +356,8 @@ func (c *jetCache) TaskSize() (size int) {
 	return
 }
 
-func (c *jetCache) CacheType() string {
+// CacheType returns cache type
+func (c *Cache) CacheType() string {
 	if c.local != nil && c.remote != nil {
 		return TypeBoth
 	} else if c.remote != nil {
@@ -391,7 +366,7 @@ func (c *jetCache) CacheType() string {
 	return TypeLocal
 }
 
-func (c *jetCache) addOrUpdateRefreshTask(item *Item) {
+func (c *Cache) addOrUpdateRefreshTask(item *Item) {
 	if c.refreshDuration <= 0 || !item.Refresh {
 		return
 	}
@@ -403,18 +378,18 @@ func (c *jetCache) addOrUpdateRefreshTask(item *Item) {
 	}
 }
 
-func (c *jetCache) cancel(key interface{}) {
+func (c *Cache) cancel(key interface{}) {
 	c.refreshTaskMap.Delete(key)
 }
 
-func (c *jetCache) stopRefresh() {
+func (c *Cache) stopRefresh() {
 	c.refreshTaskMap.Range(func(key, val interface{}) bool {
 		c.cancel(key)
 		return true
 	})
 }
 
-func (c *jetCache) tick() {
+func (c *Cache) tick() {
 	var (
 		ticker = time.NewTicker(c.refreshDuration)
 		sem    = semaphore.NewWeighted(int64(c.refreshConcurrency))
@@ -460,7 +435,7 @@ func (c *jetCache) tick() {
 	}
 }
 
-func (c *jetCache) externalLoad(ctx context.Context, task *RefreshTask, now time.Time) {
+func (c *Cache) externalLoad(ctx context.Context, task *RefreshTask, now time.Time) {
 	var (
 		lockKey    = fmt.Sprintf("%s%s", task.Key, lockKeySuffix)
 		shouldLoad bool
@@ -504,13 +479,13 @@ func (c *jetCache) externalLoad(ctx context.Context, task *RefreshTask, now time
 	}
 }
 
-func (c *jetCache) load(ctx context.Context, task *RefreshTask) {
+func (c *Cache) load(ctx context.Context, task *RefreshTask) {
 	if err := c.Set(task.toItem(ctx)); err != nil {
 		logger.Error("load#c.Set(%s) error(%v)", task.Key, err)
 	}
 }
 
-func (c *jetCache) refreshLocal(ctx context.Context, task *RefreshTask) {
+func (c *Cache) refreshLocal(ctx context.Context, task *RefreshTask) {
 	val, err := c.remote.Get(ctx, task.Key)
 	if err != nil {
 		logger.Error("refreshLocal#c.remote.Get(%s) error(%v)", task.Key, err)
