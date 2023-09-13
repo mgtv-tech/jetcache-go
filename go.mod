@@ -11,6 +11,6 @@ require (
 	github.com/onsi/gomega v1.18.1
 	github.com/stretchr/testify v1.8.2
 	github.com/vmihailenco/go-tinylfu v0.2.2
-	github.com/vmihailenco/msgpack/v5 v5.3.5
+	github.com/vmihailenco/msgpack/v5 v5.3.4
 	golang.org/x/sync v0.3.0
 )
