@@ -9,16 +9,15 @@ import (
 	"testing"
 	"time"
 
-	"github.com/alicebob/miniredis/v2"
-	"github.com/go-redis/redis/v8"
-	. "github.com/onsi/ginkgo"
-	. "github.com/onsi/gomega"
-	"github.com/stretchr/testify/assert"
-
 	"github.com/daoshenzzg/jetcache-go/local"
 	"github.com/daoshenzzg/jetcache-go/remote"
 	"github.com/daoshenzzg/jetcache-go/stats"
 	"github.com/daoshenzzg/jetcache-go/util"
+
+	"github.com/alicebob/miniredis/v2"
+	"github.com/go-redis/redis/v8"
+	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/gomega"
 )
 
 var (
@@ -74,11 +73,33 @@ var _ = Describe("Cache", func() {
 	var (
 		obj   *object
 		rdb   *redis.Client
-		cache Cache
+		cache *Cache
 		stat  *testState
 	)
 
 	testCache := func() {
+		It("Remote and Local both nil", func() {
+			nilCache := New("any")
+
+			err := nilCache.Get(context.TODO(), "key", nil)
+			Expect(err).To(Equal(ErrRemoteLocalBothNil))
+
+			err = nilCache.Delete(context.TODO(), "key")
+			Expect(err).To(Equal(ErrRemoteLocalBothNil))
+
+			err = nilCache.Set(&Item{
+				Ctx: context.TODO(),
+				Key: "key",
+				Do: func(item *Item) (interface{}, error) {
+					return "value", nil
+				},
+			})
+			Expect(err).To(Equal(ErrRemoteLocalBothNil))
+
+			err = nilCache.setNotFound(ctx, "key", false)
+			Expect(err).To(Equal(ErrRemoteLocalBothNil))
+		})
+
 		It("Gets and Sets nil", func() {
 			err := cache.Set(&Item{
 				Key: key,
@@ -461,22 +482,6 @@ var _ = Describe("Cache", func() {
 	}
 })
 
-func TestRemoteLocalBothNil(t *testing.T) {
-	cache := New("any")
-	err := cache.Get(context.TODO(), "key", nil)
-	assert.Equal(t, ErrRemoteLocalBothNil, err)
-	err = cache.Delete(context.TODO(), "key")
-	assert.Equal(t, ErrRemoteLocalBothNil, err)
-	err = cache.Set(&Item{
-		Ctx: context.TODO(),
-		Key: "key1",
-		Do: func(item *Item) (interface{}, error) {
-			return "value1", nil
-		},
-	})
-	assert.Equal(t, ErrRemoteLocalBothNil, err)
-}
-
 func newRdb() *redis.Client {
 	s, err := miniredis.Run()
 	if err != nil {
@@ -488,7 +493,7 @@ func newRdb() *redis.Client {
 	})
 }
 
-func newLocal(localType localType, stat stats.Handler) Cache {
+func newLocal(localType localType, stat stats.Handler) *Cache {
 	name := "local"
 	return New(name,
 		WithLocal(localNew(localType)),
@@ -498,7 +503,7 @@ func newLocal(localType localType, stat stats.Handler) Cache {
 		WithStatsHandler(stat))
 }
 
-func newRemote(rds *redis.Client, stat stats.Handler) Cache {
+func newRemote(rds *redis.Client, stat stats.Handler) *Cache {
 	name := "remote"
 	return New(name,
 		WithRemote(remote.NewGoRedisV8Adaptor(rds)),
@@ -508,7 +513,7 @@ func newRemote(rds *redis.Client, stat stats.Handler) Cache {
 		WithStatsHandler(stat))
 }
 
-func newBoth(rds *redis.Client, localType localType, stat stats.Handler) Cache {
+func newBoth(rds *redis.Client, localType localType, stat stats.Handler) *Cache {
 	name := "both"
 	return New(name,
 		WithRemote(remote.NewGoRedisV8Adaptor(rds)),

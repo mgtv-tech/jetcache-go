@@ -137,7 +137,7 @@ func BenchmarkSetWithFreeCache(b *testing.B) {
 }
 
 var (
-	asyncCache Cache
+	asyncCache *Cache
 	newOnce    sync.Once
 )
 
@@ -205,7 +205,7 @@ func BenchmarkOnceRefreshWithStats(b *testing.B) {
 	})
 }
 
-func newRefreshBoth() Cache {
+func newRefreshBoth() *Cache {
 	tInit()
 
 	newOnce.Do(func() {
