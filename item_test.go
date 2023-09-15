@@ -20,6 +20,11 @@ func TestItemOptions(t *testing.T) {
 		assert.False(t, o.Refresh)
 	})
 
+	t.Run("nil context", func(t *testing.T) {
+		o := newItemOptions(nil, "key")
+		assert.Equal(t, context.Background(), o.Context())
+	})
+
 	t.Run("with item options", func(t *testing.T) {
 		o := newItemOptions(context.TODO(), "key", Value("value"),
 			TTL(time.Minute), SetXX(true), SetNX(true), SkipLocal(true),
