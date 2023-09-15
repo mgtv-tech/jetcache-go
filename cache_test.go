@@ -378,15 +378,15 @@ var _ = Describe("Cache", func() {
 	})
 
 	for _, typ := range localTypes {
-		//Context(fmt.Sprintf("with both remote and local(%v)", typ), func() {
-		//	BeforeEach(func() {
-		//		stat = &testState{}
-		//		rdb = newRdb()
-		//		cache = newBoth(rdb, typ, stat)
-		//	})
-		//
-		//	testCache()
-		//})
+		Context(fmt.Sprintf("with both remote and local(%v)", typ), func() {
+			BeforeEach(func() {
+				stat = &testState{}
+				rdb = newRdb()
+				cache = newBoth(rdb, typ, stat)
+			})
+
+			testCache()
+		})
 
 		Context(fmt.Sprintf("with only local(%v)", typ), func() {
 			BeforeEach(func() {
