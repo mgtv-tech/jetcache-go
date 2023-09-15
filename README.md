@@ -16,11 +16,11 @@ Translate to: [简体中文](README_zh.md)
 - ✅ The Once interface adopts the `singleflight` pattern, which is highly concurrent and thread-safe.
 - ✅ By default, [MsgPack](https://github.com/vmihailenco/msgpack) is used for encoding and decoding values.
 - ✅ The default local cache implementation includes [TinyLFU](https://github.com/dgryski/go-tinylfu) and [FreeCache](https://github.com/coocood/freecache).
-- ✅ The default centralized cache implementation is based on [go-redis/v8](https://github.com/redis/go-redis), and you can also customize your own implementation.
+- ✅ The default distributed cache implementation is based on [go-redis/v8](https://github.com/redis/go-redis), and you can also customize your own implementation.
 - ✅ You can customize the errNotFound error and use placeholders to prevent cache penetration by caching empty results.
 - ✅ Supports asynchronous refreshing of distributed caches.
 - ✅ Metrics collection: By default, it prints statistical metrics (QPM, Hit, Miss, Query, QueryFail) through logs.
-- ✅ Automatic degradation of centralized cache query failures.
+- ✅ Automatic degradation of distributed cache query failures.
 
 # Installation
 To start using the latest version of jetcache-go, you can import the library into your project:
@@ -75,17 +75,11 @@ func Example_basicUsage() {
 		cache.WithRemote(remote.NewGoRedisV8Adaptor(ring)),
 		cache.WithLocal(local.NewFreeCache(256*local.MB, time.Minute)),
 		cache.WithErrNotFound(errRecordNotFound))
-
+	
 	ctx := context.TODO()
 	key := util.JoinAny(":", "mykey", 1)
 	obj, _ := mockDBGetObject(1)
-
-	if err := mycache.Set(&cache.Item{
-		Ctx:   ctx,
-		Key:   key,
-		Value: obj,
-		TTL:   time.Hour,
-	}); err != nil {
+	if err := mycache.Set(ctx, key, cache.Value(obj), cache.TTL(time.Hour)); err != nil {
 		panic(err)
 	}
 
@@ -114,16 +108,12 @@ func Example_advancedUsage() {
 		cache.WithErrNotFound(errRecordNotFound),
 		cache.WithRefreshDuration(time.Minute))
 
+	ctx := context.TODO()
+	key := util.JoinAny(":", "mykey", 1)
 	obj := new(object)
-	err := mycache.Once(&cache.Item{
-		Key:   util.JoinAny(":", "mykey", 1),
-		Value: obj, // destination
-		Do: func(*cache.Item) (interface{}, error) {
-			return mockDBGetObject(1)
-		},
-		Refresh: true, // auto refreshment
-	})
-	if err != nil {
+	if err := mycache.Once(ctx, key, cache.Value(obj), cache.Refresh(true), cache.Do(func() (interface{}, error) {
+		return mockDBGetObject(1)
+	})); err != nil {
 		panic(err)
 	}
 	fmt.Println(obj)

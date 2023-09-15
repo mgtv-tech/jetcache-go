@@ -11,15 +11,15 @@ Translations: [English](README.md) | [简体中文](README_zh.md)
 [jetcache-go](https://github.com/daoshenzzg/jetcache-go)是基于[go-redis/cache](https://github.com/go-redis/cache)拓展的通用缓存访问框架。
 实现了类似Java版[JetCache](https://github.com/alibaba/jetcache)的核心功能，包括：
 
-- ✅ 二级缓存自由组合：本地缓存、集中缓存、本地缓存+集中缓存
+- ✅ 二级缓存自由组合：本地缓存、分布式缓存、本地缓存+分布式缓存
 - ✅ Once接口采用单飞(`singleflight`)模式，高并发且线程安全
 - ✅ 默认采用[MsgPack](https://github.com/vmihailenco/msgpack)来编解码Value
 - ✅ 本地缓存默认实现了[TinyLFU](https://github.com/dgryski/go-tinylfu)和[FreeCache](https://github.com/coocood/freecache)
-- ✅ 集中缓存默认实现了[go-redis/v8](https://github.com/redis/go-redis)的适配器，你也可以自定义实现
+- ✅ 分布式缓存默认实现了[go-redis/v8](https://github.com/redis/go-redis)的适配器，你也可以自定义实现
 - ✅ 可以自定义`errNotFound`，通过占位符替换，缓存空结果防止缓存穿透
 - ✅ 支持开启分布式缓存异步刷新
 - ✅ 指标采集，默认实现了通过日志打印各级缓存的统计指标（QPM、Hit、Miss、Query、QueryFail）
-- ✅ 集中缓存查询故障自动降级
+- ✅ 分布式缓存查询故障自动降级
 
 # 安装
 使用最新版本的jetcache-go，您可以在项目中导入该库：
@@ -78,13 +78,7 @@ func Example_basicUsage() {
 	ctx := context.TODO()
 	key := util.JoinAny(":", "mykey", 1)
 	obj, _ := mockDBGetObject(1)
-
-	if err := mycache.Set(&cache.Item{
-		Ctx:   ctx,
-		Key:   key,
-		Value: obj,
-		TTL:   time.Hour,
-	}); err != nil {
+	if err := mycache.Set(ctx, key, cache.Value(obj), cache.TTL(time.Hour)); err != nil {
 		panic(err)
 	}
 
@@ -113,16 +107,12 @@ func Example_advancedUsage() {
 		cache.WithErrNotFound(errRecordNotFound),
 		cache.WithRefreshDuration(time.Minute))
 
+	ctx := context.TODO()
+	key := util.JoinAny(":", "mykey", 1)
 	obj := new(object)
-	err := mycache.Once(&cache.Item{
-		Key:   util.JoinAny(":", "mykey", 1),
-		Value: obj, // destination
-		Do: func(*cache.Item) (interface{}, error) {
-			return mockDBGetObject(1)
-		},
-		Refresh: true, // auto refreshment
-	})
-	if err != nil {
+	if err := mycache.Once(ctx, key, cache.Value(obj), cache.Refresh(true), cache.Do(func() (interface{}, error) {
+		return mockDBGetObject(1)
+	})); err != nil {
 		panic(err)
 	}
 	fmt.Println(obj)
