@@ -128,11 +128,12 @@ func Example_advancedUsage() {
 // Options are used to store cache options.
 type Options struct {
     name                       string        // Cache name, used for log identification and metric reporting
-    remote                     remote.Remote // Remote cache.
-    local                      local.Local   // Local cache.
+    remote                     remote.Remote // Remote is distributed cache, such as Redis.
+    local                      local.Local   // Local is memory cache, such as FreeCache.
     codec                      string        // Value encoding and decoding method. Default is "msgpack.Name". You can also customize it.
     errNotFound                error         // Error to return for cache miss. Used to prevent cache penetration.
     notFoundExpiry             time.Duration // Duration for placeholder cache when there is a cache miss. Default is 1 minute.
+    offset                     time.Duration // Expiration time jitter factor for cache misses.
     refreshDuration            time.Duration // Interval for asynchronous cache refresh. Default is 0 (refresh is disabled).
     stopRefreshAfterLastAccess time.Duration // Duration for cache to stop refreshing after no access. Default is refreshDuration + 1 second.
     refreshConcurrency         int           // Maximum number of concurrent cache refreshes. Default is 4.
