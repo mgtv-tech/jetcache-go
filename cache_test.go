@@ -33,7 +33,7 @@ const (
 
 	localExpire                = time.Minute
 	refreshDuration            = time.Second
-	stopRefreshAfterLastAccess = 2 * refreshDuration
+	stopRefreshAfterLastAccess = refreshDuration + 900*time.Millisecond
 )
 
 type (
