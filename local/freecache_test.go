@@ -15,6 +15,7 @@ func TestFreeCache(t *testing.T) {
 	assert.Equal(t, time.Second/10, cache.offset)
 	cache.UseRandomizedTTL(time.Millisecond)
 	assert.Equal(t, time.Millisecond, cache.offset)
+	assert.Equal(t, "", cache.innerKeyPrefix)
 
 	key1 := "key1"
 	val, exists := cache.Get(key1)
@@ -30,6 +31,13 @@ func TestFreeCache(t *testing.T) {
 	val, exists = cache.Get(key1)
 	assert.False(t, exists)
 	assert.Equal(t, []byte(nil), val)
+}
+
+func TestNewFreeCacheWithInnerKeyPrefix(t *testing.T) {
+	innerKeyPrefix := "any"
+	cache := NewFreeCache(10*MB, time.Second, innerKeyPrefix)
+	assert.Equal(t, "any", cache.innerKeyPrefix)
+	assert.Equal(t, "any:key", cache.Key("key"))
 }
 
 func TestFreeCacheGetCorruptionOnExpiry(t *testing.T) {
