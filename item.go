@@ -131,8 +131,3 @@ func (item *item) toRefreshTask() *refreshTask {
 		LastAccessTime: time.Now(),
 	}
 }
-
-func (rt *refreshTask) toItem(ctx context.Context) *item {
-	return newItemOptions(ctx, rt.Key, TTL(rt.TTL), Do(rt.Do),
-		SetXX(rt.SetXX), SetNX(rt.SetNX), SkipLocal(rt.SkipLocal))
-}
