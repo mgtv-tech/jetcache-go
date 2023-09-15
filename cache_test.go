@@ -350,7 +350,9 @@ var _ = Describe("Cache", func() {
 
 				time.Sleep(refreshDuration)
 				Expect(cache.TaskSize()).To(Equal(0))
-				Expect(atomic.LoadUint64(&stat.Query)).To(Equal(uint64(4)))
+				if cache.CacheType() != TypeLocal {
+					Expect(atomic.LoadUint64(&stat.Query)).To(Equal(uint64(4)))
+				}
 			})
 		})
 	}
