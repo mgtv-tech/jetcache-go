@@ -44,13 +44,7 @@ func Example_basicUsage() {
 	ctx := context.TODO()
 	key := util.JoinAny(":", "mykey", 1)
 	obj, _ := mockDBGetObject(1)
-
-	if err := mycache.Set(&cache.Item{
-		Ctx:   ctx,
-		Key:   key,
-		Value: obj,
-		TTL:   time.Hour,
-	}); err != nil {
+	if err := mycache.Set(ctx, key, cache.Value(obj), cache.TTL(time.Hour)); err != nil {
 		panic(err)
 	}
 
@@ -78,16 +72,12 @@ func Example_advancedUsage() {
 		cache.WithErrNotFound(errRecordNotFound),
 		cache.WithRefreshDuration(time.Minute))
 
+	ctx := context.TODO()
+	key := util.JoinAny(":", "mykey", 1)
 	obj := new(object)
-	err := mycache.Once(&cache.Item{
-		Key:   util.JoinAny(":", "mykey", 1),
-		Value: obj, // destination
-		Do: func(*cache.Item) (interface{}, error) {
-			return mockDBGetObject(1)
-		},
-		Refresh: true, // auto refreshment
-	})
-	if err != nil {
+	if err := mycache.Once(ctx, key, cache.Value(obj), cache.Refresh(true), cache.Do(func() (interface{}, error) {
+		return mockDBGetObject(1)
+	})); err != nil {
 		panic(err)
 	}
 	fmt.Println(obj)
