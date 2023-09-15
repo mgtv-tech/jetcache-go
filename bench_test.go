@@ -41,13 +41,9 @@ func BenchmarkOnceWithTinyLFU(b *testing.B) {
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
 			var dst object
-			err := cache.Once(&Item{
-				Key:   "bench-once",
-				Value: &dst,
-				Do: func(*Item) (interface{}, error) {
-					return obj, nil
-				},
-			})
+			err := cache.Once(context.TODO(), "bench-once", Value(&dst), Do(func() (interface{}, error) {
+				return obj, nil
+			}))
 			if err != nil {
 				b.Fatal(err)
 			}
@@ -71,10 +67,7 @@ func BenchmarkSetWithTinyLFU(b *testing.B) {
 
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
-			if err := cache.Set(&Item{
-				Key:   "bench-set",
-				Value: obj,
-			}); err != nil {
+			if err := cache.Set(context.TODO(), "bench-set", Value(obj)); err != nil {
 				b.Fatal(err)
 			}
 		}
@@ -95,13 +88,10 @@ func BenchmarkOnceWithFreeCache(b *testing.B) {
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
 			var dst object
-			err := cache.Once(&Item{
-				Key:   "bench-once",
-				Value: &dst,
-				Do: func(*Item) (interface{}, error) {
+			err := cache.Once(context.TODO(), "bench-once", Value(&dst),
+				Do(func() (interface{}, error) {
 					return obj, nil
-				},
-			})
+				}))
 			if err != nil {
 				b.Fatal(err)
 			}
@@ -125,10 +115,7 @@ func BenchmarkSetWithFreeCache(b *testing.B) {
 
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
-			if err := cache.Set(&Item{
-				Key:   "bench-set",
-				Value: obj,
-			}); err != nil {
+			if err := cache.Set(context.TODO(), "bench-set", Value(obj)); err != nil {
 				b.Fatal(err)
 			}
 		}
@@ -141,7 +128,7 @@ var (
 )
 
 func BenchmarkOnceWithStats(b *testing.B) {
-	cc := newRefreshBoth()
+	cache := newRefreshBoth()
 	obj := &object{
 		Str: strings.Repeat("my very large string", 10),
 		Num: 42,
@@ -152,15 +139,11 @@ func BenchmarkOnceWithStats(b *testing.B) {
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
 			var dst object
-			err := cc.Once(&Item{
-				Ctx:   context.Background(),
-				Key:   "bench-once_" + strconv.Itoa(rand.Intn(256)),
-				Value: &dst,
-				Do: func(item *Item) (interface{}, error) {
+			err := cache.Once(context.TODO(), "bench-once_"+strconv.Itoa(rand.Intn(256)),
+				Value(&dst), Do(func() (interface{}, error) {
 					time.Sleep(50 * time.Millisecond)
 					return obj, nil
-				},
-			})
+				}))
 			if err != nil {
 				b.Fatal(err)
 			}
@@ -184,16 +167,12 @@ func BenchmarkOnceRefreshWithStats(b *testing.B) {
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
 			var dst object
-			err := cache.Once(&Item{
-				Ctx:   context.Background(),
-				Key:   "bench-refresh_" + strconv.Itoa(rand.Intn(256)),
-				Value: &dst,
-				Do: func(item *Item) (interface{}, error) {
+			err := cache.Once(context.TODO(), "bench-refresh_"+strconv.Itoa(rand.Intn(256)),
+				Value(&dst), Do(func() (interface{}, error) {
 					time.Sleep(50 * time.Millisecond)
 					return obj, nil
-				},
-				Refresh: true,
-			})
+				}),
+				Refresh(true))
 			if err != nil {
 				b.Fatal(err)
 			}
