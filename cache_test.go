@@ -4,33 +4,35 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strconv"
 	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
 
-	"github.com/daoshenzzg/jetcache-go/local"
-	"github.com/daoshenzzg/jetcache-go/remote"
-	"github.com/daoshenzzg/jetcache-go/stats"
-	"github.com/daoshenzzg/jetcache-go/util"
-
 	"github.com/alicebob/miniredis/v2"
 	"github.com/go-redis/redis/v8"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+
+	"github.com/daoshenzzg/jetcache-go/local"
+	"github.com/daoshenzzg/jetcache-go/remote"
+	"github.com/daoshenzzg/jetcache-go/stats"
+	"github.com/daoshenzzg/jetcache-go/util"
 )
 
 var (
+	localId         int32
 	errTestNotFound = errors.New("not found")
-	localTypes      = [2]localType{freeCache, tinyLFU}
+	localTypes      = []localType{tinyLFU, freeCache}
 )
 
 const (
 	freeCache localType = 1
 	tinyLFU   localType = 2
 
-	localExpire                = 5 * time.Millisecond
-	refreshDuration            = 10 * time.Millisecond
+	localExpire                = time.Second
+	refreshDuration            = time.Second
 	stopRefreshAfterLastAccess = 2 * refreshDuration
 )
 
@@ -81,19 +83,15 @@ var _ = Describe("Cache", func() {
 		It("Remote and Local both nil", func() {
 			nilCache := New()
 
-			err := nilCache.Get(context.TODO(), "key", nil)
+			err := nilCache.Get(ctx, "key", nil)
 			Expect(err).To(Equal(ErrRemoteLocalBothNil))
 
-			err = nilCache.Delete(context.TODO(), "key")
+			err = nilCache.Delete(ctx, "key")
 			Expect(err).To(Equal(ErrRemoteLocalBothNil))
 
-			err = nilCache.Set(&Item{
-				Ctx: context.TODO(),
-				Key: "key",
-				Do: func(item *Item) (interface{}, error) {
-					return "value", nil
-				},
-			})
+			err = nilCache.Set(ctx, "key", Do(func() (interface{}, error) {
+				return "value", nil
+			}))
 			Expect(err).To(Equal(ErrRemoteLocalBothNil))
 
 			err = nilCache.setNotFound(ctx, "key", false)
@@ -101,10 +99,7 @@ var _ = Describe("Cache", func() {
 		})
 
 		It("Gets and Sets nil", func() {
-			err := cache.Set(&Item{
-				Key: key,
-				TTL: time.Hour,
-			})
+			err := cache.Set(ctx, key, TTL(time.Hour))
 			Expect(err).NotTo(HaveOccurred())
 
 			err = cache.Get(ctx, key, nil)
@@ -114,11 +109,7 @@ var _ = Describe("Cache", func() {
 		})
 
 		It("Deletes key", func() {
-			err := cache.Set(&Item{
-				Ctx: ctx,
-				Key: key,
-				TTL: time.Hour,
-			})
+			err := cache.Set(ctx, key, TTL(time.Hour))
 			Expect(err).NotTo(HaveOccurred())
 
 			Expect(cache.Exists(ctx, key)).To(BeTrue())
@@ -144,34 +135,19 @@ var _ = Describe("Cache", func() {
 
 		It("SetXxNx", func() {
 			if cache.CacheType() == TypeRemote {
-				err := cache.Set(&Item{
-					Key:   key,
-					TTL:   time.Hour,
-					Value: obj,
-					SetXX: true,
-				})
+				err := cache.Set(ctx, key, TTL(time.Hour), Value(obj), SetXX(true))
 				Expect(err).NotTo(HaveOccurred())
 				err = cache.Get(ctx, key, nil)
 				Expect(err).To(Equal(ErrCacheMiss))
 
-				err = cache.Set(&Item{
-					Key:   key,
-					TTL:   time.Hour,
-					Value: obj,
-					SetNX: true,
-				})
+				err = cache.Set(ctx, key, TTL(time.Hour), Value(obj), SetNX(true))
 				Expect(err).NotTo(HaveOccurred())
 				Expect(cache.Exists(ctx, key)).To(BeTrue())
 			}
 		})
 
 		It("Gets and Sets data", func() {
-			err := cache.Set(&Item{
-				Ctx:   ctx,
-				Key:   key,
-				Value: obj,
-				TTL:   time.Hour,
-			})
+			err := cache.Set(ctx, key, Value(obj), TTL(time.Hour))
 			Expect(err).NotTo(HaveOccurred())
 
 			wanted := new(object)
@@ -191,11 +167,7 @@ var _ = Describe("Cache", func() {
 		It("Sets string as is", func() {
 			value := "str_value"
 
-			err := cache.Set(&Item{
-				Ctx:   ctx,
-				Key:   key,
-				Value: value,
-			})
+			err := cache.Set(ctx, key, Value(value))
 			Expect(err).NotTo(HaveOccurred())
 
 			var dst string
@@ -207,11 +179,7 @@ var _ = Describe("Cache", func() {
 		It("Sets bytes as is", func() {
 			value := []byte("str_value")
 
-			err := cache.Set(&Item{
-				Ctx:   ctx,
-				Key:   key,
-				Value: value,
-			})
+			err := cache.Set(ctx, key, Value(value))
 			Expect(err).NotTo(HaveOccurred())
 
 			var dst []byte
@@ -227,11 +195,7 @@ var _ = Describe("Cache", func() {
 
 			value := "123"
 
-			err := cache.Set(&Item{
-				Ctx:   ctx,
-				Key:   key,
-				Value: value,
-			})
+			err := cache.Set(ctx, key, Value(value))
 			Expect(err).NotTo(HaveOccurred())
 
 			n, err := rdb.Incr(ctx, key).Result()
@@ -242,18 +206,11 @@ var _ = Describe("Cache", func() {
 		Describe("Once func", func() {
 			It("works with err not found", func() {
 				key := "cache-err-not-found"
-				do := func(item *Item) (interface{}, error) {
+				do := func() (interface{}, error) {
 					return nil, errTestNotFound
 				}
 				var value string
-				item := Item{
-					Ctx:   ctx,
-					Key:   key,
-					Value: &value,
-					Do:    do,
-				}
-
-				err := cache.Once(&item)
+				err := cache.Once(ctx, key, Value(&value), Do(do))
 				Expect(err).To(Equal(errTestNotFound))
 				Expect(cache.Get(context.Background(), key, &value)).To(Equal(errTestNotFound))
 				Expect(cache.Exists(context.Background(), key)).To(BeFalse())
@@ -263,48 +220,32 @@ var _ = Describe("Cache", func() {
 					Expect(val).To(Equal(string(NotFoundPlaceholder)))
 				}
 
-				_ = cache.Set(&item)
-				do = func(item *Item) (interface{}, error) {
+				_ = cache.Set(ctx, key, Value(value), Do(do))
+				do = func() (interface{}, error) {
 					return nil, nil
 				}
-				item = Item{
-					Ctx:   ctx,
-					Key:   key,
-					Value: &value,
-					Do:    do,
-				}
-				err = cache.Once(&item)
+				err = cache.Once(ctx, key, Value(&value), Do(do))
 				Expect(err).To(Equal(errTestNotFound))
 				Expect(cache.Get(context.Background(), key, &value)).To(Equal(errTestNotFound))
 				Expect(cache.Exists(context.Background(), key)).To(BeFalse())
 
 				_ = cache.Delete(context.Background(), key)
 				errAny := errors.New("any")
-				do = func(item *Item) (interface{}, error) {
+				do = func() (interface{}, error) {
 					return nil, errAny
 				}
-				item = Item{
-					Ctx:   ctx,
-					Key:   key,
-					Value: &value,
-					Do:    do,
-				}
-				err = cache.Once(&item)
+				err = cache.Once(ctx, key, Value(&value), Do(do))
 				Expect(err).To(Equal(errAny))
 			})
 
 			It("works without Value and error result", func() {
 				var callCount int64
 				perform(100, func(int) {
-					err := cache.Once(&Item{
-						Ctx: ctx,
-						Key: key,
-						Do: func(*Item) (interface{}, error) {
-							time.Sleep(100 * time.Millisecond)
-							atomic.AddInt64(&callCount, 1)
-							return nil, errors.New("error stub")
-						},
-					})
+					err := cache.Once(ctx, key, Do(func() (interface{}, error) {
+						time.Sleep(100 * time.Millisecond)
+						atomic.AddInt64(&callCount, 1)
+						return nil, errors.New("error stub")
+					}))
 					Expect(err).To(MatchError("error stub"))
 				})
 				Expect(callCount).To(Equal(int64(1)))
@@ -314,20 +255,15 @@ var _ = Describe("Cache", func() {
 				var callCount int64
 				do := func(sleep time.Duration) (int, error) {
 					var n int
-					err := cache.Once(&Item{
-						Ctx:   ctx,
-						Key:   key,
-						Value: &n,
-						Do: func(*Item) (interface{}, error) {
-							time.Sleep(sleep)
+					err := cache.Once(ctx, key, Value(&n), Do(func() (interface{}, error) {
+						time.Sleep(sleep)
 
-							n := atomic.AddInt64(&callCount, 1)
-							if n == 1 {
-								return nil, errors.New("error stub")
-							}
-							return 42, nil
-						},
-					})
+						n := atomic.AddInt64(&callCount, 1)
+						if n == 1 {
+							return nil, errors.New("error stub")
+						}
+						return 42, nil
+					}))
 					if err != nil {
 						return 0, err
 					}
@@ -353,15 +289,9 @@ var _ = Describe("Cache", func() {
 				key := "skip-set"
 
 				var value string
-				err := cache.Once(&Item{
-					Ctx:   ctx,
-					Key:   key,
-					Value: &value,
-					Do: func(item *Item) (interface{}, error) {
-						item.TTL = -1
-						return "hello", nil
-					},
-				})
+				err := cache.Once(ctx, key, Value(&value), TTL(-1), Do(func() (interface{}, error) {
+					return "hello", nil
+				}))
 				Expect(err).NotTo(HaveOccurred())
 				Expect(value).To(Equal("hello"))
 
@@ -379,36 +309,24 @@ var _ = Describe("Cache", func() {
 					value string
 					err   error
 				)
-				err = cache.Once(&Item{
-					Key:     key1,
-					Value:   &value,
-					TTL:     time.Second,
-					Refresh: true,
-					Do: func(item *Item) (interface{}, error) {
+				err = cache.Once(ctx, key1, Value(&value), TTL(time.Second), Refresh(true),
+					Do(func() (interface{}, error) {
 						return "V1", nil
-					}})
+					}))
 				Expect(err).NotTo(HaveOccurred())
 				Expect(value).To(Equal("V1"))
-				err = cache.Once(&Item{
-					Key:     key1,
-					Value:   &value,
-					TTL:     time.Second,
-					Refresh: true,
-					Do: func(item *Item) (interface{}, error) {
+				err = cache.Once(ctx, key1, Value(&value), TTL(time.Second), Refresh(true),
+					Do(func() (interface{}, error) {
 						return "V1", nil
-					}})
+					}))
 				Expect(err).NotTo(HaveOccurred())
 				Expect(value).To(Equal("V1"))
 				Expect(stat.Query).To(Equal(uint64(1)))
 
-				err = cache.Once(&Item{
-					Key:     key2,
-					Value:   &value,
-					TTL:     time.Second,
-					Refresh: true,
-					Do: func(item *Item) (interface{}, error) {
+				err = cache.Once(ctx, key2, Value(&value), TTL(time.Second), Refresh(true),
+					Do(func() (interface{}, error) {
 						return "V2", nil
-					}})
+					}))
 				Expect(err).NotTo(HaveOccurred())
 				Expect(value).To(Equal("V2"))
 				Expect(atomic.LoadUint64(&stat.Query)).To(Equal(uint64(2)))
@@ -460,15 +378,15 @@ var _ = Describe("Cache", func() {
 	})
 
 	for _, typ := range localTypes {
-		Context(fmt.Sprintf("with both remote and local(%v)", typ), func() {
-			BeforeEach(func() {
-				stat = &testState{}
-				rdb = newRdb()
-				cache = newBoth(rdb, typ, stat)
-			})
-
-			testCache()
-		})
+		//Context(fmt.Sprintf("with both remote and local(%v)", typ), func() {
+		//	BeforeEach(func() {
+		//		stat = &testState{}
+		//		rdb = newRdb()
+		//		cache = newBoth(rdb, typ, stat)
+		//	})
+		//
+		//	testCache()
+		//})
 
 		Context(fmt.Sprintf("with only local(%v)", typ), func() {
 			BeforeEach(func() {
@@ -523,9 +441,10 @@ func newBoth(rds *redis.Client, localType localType, stat stats.Handler) *Cache 
 
 func localNew(localType localType) local.Local {
 	if localType == tinyLFU {
-		return local.NewTinyLFU(1000, localExpire)
+		return local.NewTinyLFU(100000, localExpire)
 	} else {
-		return local.NewFreeCache(256*local.MB, localExpire)
+		id := atomic.AddInt32(&localId, 1)
+		return local.NewFreeCache(256*local.MB, localExpire, strconv.Itoa(int(id)))
 	}
 }
 

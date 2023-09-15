@@ -58,13 +58,13 @@ func New(opts ...Option) *Cache {
 	return cache
 }
 
-// Set sets the cache with Item
-func (c *Cache) Set(item *Item) error {
-	_, _, err := c.set(item)
+// Set sets the cache
+func (c *Cache) Set(ctx context.Context, key string, opts ...ItemOption) error {
+	_, _, err := c.set(newItemOptions(ctx, key, opts...))
 	return err
 }
 
-func (c *Cache) set(item *Item) ([]byte, bool, error) {
+func (c *Cache) set(item *item) ([]byte, bool, error) {
 	val, err := item.value()
 	if item.Do != nil {
 		c.statsHandler.IncrQuery()
@@ -189,7 +189,9 @@ func (c *Cache) getBytes(ctx context.Context, key string, skipLocal bool) ([]byt
 // making sure that only one execution is in-flight for a given item.Key
 // at a time. If a duplicate comes in, the duplicate caller waits for the
 // original to complete and receives the same results.
-func (c *Cache) Once(item *Item) error {
+func (c *Cache) Once(ctx context.Context, key string, opts ...ItemOption) error {
+	item := newItemOptions(ctx, key, opts...)
+
 	c.addOrUpdateRefreshTask(item)
 
 	b, cached, err := c.getSetItemBytesOnce(item)
@@ -207,8 +209,8 @@ func (c *Cache) Once(item *Item) error {
 
 	if err := c.Unmarshal(b, item.Value); err != nil {
 		if cached {
-			_ = c.Delete(item.Context(), item.Key)
-			return c.Once(item)
+			_ = c.Delete(ctx, item.Key)
+			return c.Once(ctx, key, opts...)
 		}
 		return err
 	}
@@ -216,7 +218,7 @@ func (c *Cache) Once(item *Item) error {
 	return nil
 }
 
-func (c *Cache) getSetItemBytesOnce(item *Item) (b []byte, cached bool, err error) {
+func (c *Cache) getSetItemBytesOnce(item *item) (b []byte, cached bool, err error) {
 	if c.local != nil {
 		b, ok := c.local.Get(item.Key)
 		if ok {
@@ -362,15 +364,15 @@ func (c *Cache) CacheType() string {
 	return TypeLocal
 }
 
-func (c *Cache) addOrUpdateRefreshTask(item *Item) {
+func (c *Cache) addOrUpdateRefreshTask(item *item) {
 	if c.refreshDuration <= 0 || !item.Refresh {
 		return
 	}
 
 	if ins, ok := c.refreshTaskMap.Load(item.Key); ok {
-		ins.(*RefreshTask).LastAccessTime = time.Now()
+		ins.(*refreshTask).LastAccessTime = time.Now()
 	} else if ins, loaded := c.refreshTaskMap.LoadOrStore(item.Key, item.toRefreshTask()); loaded {
-		ins.(*RefreshTask).LastAccessTime = time.Now()
+		ins.(*refreshTask).LastAccessTime = time.Now()
 	}
 }
 
@@ -399,7 +401,7 @@ func (c *Cache) tick() {
 			// does not time out under concurrent queuing.
 			var now = time.Now()
 			c.refreshTaskMap.Range(func(key, val interface{}) bool {
-				task := val.(*RefreshTask)
+				task := val.(*refreshTask)
 				if c.stopRefreshAfterLastAccess > 0 {
 					if task.LastAccessTime.Add(c.stopRefreshAfterLastAccess).Before(now) {
 						logger.Debug("cancel refresh key: %s", key)
@@ -431,7 +433,7 @@ func (c *Cache) tick() {
 	}
 }
 
-func (c *Cache) externalLoad(ctx context.Context, task *RefreshTask, now time.Time) {
+func (c *Cache) externalLoad(ctx context.Context, task *refreshTask, now time.Time) {
 	var (
 		lockKey    = fmt.Sprintf("%s%s", task.Key, lockKeySuffix)
 		shouldLoad bool
@@ -457,7 +459,8 @@ func (c *Cache) externalLoad(ctx context.Context, task *RefreshTask, now time.Ti
 		return
 	}
 	if ok {
-		if err = c.Set(task.toItem(ctx)); err != nil {
+		if err = c.Set(ctx, task.Key, TTL(task.TTL), Do(task.Do), SetXX(task.SetXX),
+			SetNX(task.SetNX), SkipLocal(task.SkipLocal)); err != nil {
 			logger.Error("externalLoad#c.Set(%s) error(%v)", task.Key, err)
 			return
 		}
@@ -475,13 +478,14 @@ func (c *Cache) externalLoad(ctx context.Context, task *RefreshTask, now time.Ti
 	}
 }
 
-func (c *Cache) load(ctx context.Context, task *RefreshTask) {
-	if err := c.Set(task.toItem(ctx)); err != nil {
+func (c *Cache) load(ctx context.Context, task *refreshTask) {
+	if err := c.Set(ctx, task.Key, TTL(task.TTL), Do(task.Do), SetXX(task.SetXX),
+		SetNX(task.SetNX), SkipLocal(task.SkipLocal)); err != nil {
 		logger.Error("load#c.Set(%s) error(%v)", task.Key, err)
 	}
 }
 
-func (c *Cache) refreshLocal(ctx context.Context, task *RefreshTask) {
+func (c *Cache) refreshLocal(ctx context.Context, task *refreshTask) {
 	val, err := c.remote.Get(ctx, task.Key)
 	if err != nil {
 		logger.Error("refreshLocal#c.remote.Get(%s) error(%v)", task.Key, err)
