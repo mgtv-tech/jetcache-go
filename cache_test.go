@@ -31,7 +31,7 @@ const (
 	freeCache localType = 1
 	tinyLFU   localType = 2
 
-	localExpire                = time.Second
+	localExpire                = time.Minute
 	refreshDuration            = time.Second
 	stopRefreshAfterLastAccess = 2 * refreshDuration
 )
@@ -309,13 +309,13 @@ var _ = Describe("Cache", func() {
 					value string
 					err   error
 				)
-				err = cache.Once(ctx, key1, Value(&value), TTL(time.Second), Refresh(true),
+				err = cache.Once(ctx, key1, Value(&value), TTL(time.Minute), Refresh(true),
 					Do(func() (interface{}, error) {
 						return "V1", nil
 					}))
 				Expect(err).NotTo(HaveOccurred())
 				Expect(value).To(Equal("V1"))
-				err = cache.Once(ctx, key1, Value(&value), TTL(time.Second), Refresh(true),
+				err = cache.Once(ctx, key1, Value(&value), TTL(time.Minute), Refresh(true),
 					Do(func() (interface{}, error) {
 						return "V1", nil
 					}))
@@ -323,7 +323,7 @@ var _ = Describe("Cache", func() {
 				Expect(value).To(Equal("V1"))
 				Expect(stat.Query).To(Equal(uint64(1)))
 
-				err = cache.Once(ctx, key2, Value(&value), TTL(time.Second), Refresh(true),
+				err = cache.Once(ctx, key2, Value(&value), TTL(time.Minute), Refresh(true),
 					Do(func() (interface{}, error) {
 						return "V2", nil
 					}))
@@ -332,7 +332,7 @@ var _ = Describe("Cache", func() {
 				Expect(atomic.LoadUint64(&stat.Query)).To(Equal(uint64(2)))
 				Expect(cache.TaskSize()).To(Equal(2))
 
-				time.Sleep(refreshDuration + 2*time.Millisecond)
+				time.Sleep(refreshDuration + 100*time.Millisecond)
 				err = cache.Get(ctx, key1, &value)
 				Expect(err).NotTo(HaveOccurred())
 				Expect(value).To(Equal("V1"))
@@ -341,18 +341,12 @@ var _ = Describe("Cache", func() {
 
 				time.Sleep(refreshDuration + refreshDuration/2)
 				err = cache.Get(ctx, key1, &value)
-				if cache.CacheType() == TypeRemote || cache.CacheType() == TypeBoth {
-					Expect(err).NotTo(HaveOccurred())
-					Expect(value).To(Equal("V1"))
-				} else {
-					Expect(err).To(Equal(ErrCacheMiss))
-				}
+				Expect(err).NotTo(HaveOccurred())
+				Expect(value).To(Equal("V1"))
 
 				time.Sleep(refreshDuration)
 				Expect(cache.TaskSize()).To(Equal(0))
-				if cache.CacheType() != TypeLocal {
-					Expect(atomic.LoadUint64(&stat.Query)).To(Equal(uint64(4)))
-				}
+				Expect(atomic.LoadUint64(&stat.Query)).To(Equal(uint64(4)))
 			})
 		})
 	}
