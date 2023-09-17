@@ -11,13 +11,13 @@ import (
 func TestItemOptions(t *testing.T) {
 	t.Run("default item options", func(t *testing.T) {
 		o := newItemOptions(context.TODO(), "key")
-		assert.Nil(t, o.Value)
-		assert.Nil(t, o.Do)
-		assert.Equal(t, defaultTTL, o.ttl())
-		assert.False(t, o.SetXX)
-		assert.False(t, o.SetNX)
-		assert.False(t, o.SkipLocal)
-		assert.False(t, o.Refresh)
+		assert.Nil(t, o.value)
+		assert.Nil(t, o.do)
+		assert.Equal(t, defaultTTL, o.getTtl())
+		assert.False(t, o.setXX)
+		assert.False(t, o.setNX)
+		assert.False(t, o.skipLocal)
+		assert.False(t, o.refresh)
 	})
 
 	t.Run("nil context", func(t *testing.T) {
@@ -26,18 +26,18 @@ func TestItemOptions(t *testing.T) {
 	})
 
 	t.Run("with item options", func(t *testing.T) {
-		o := newItemOptions(context.TODO(), "key", Value("value"),
+		o := newItemOptions(context.TODO(), "key", Value("getValue"),
 			TTL(time.Minute), SetXX(true), SetNX(true), SkipLocal(true),
 			Refresh(true), Do(func() (interface{}, error) {
 				return "any", nil
 			}))
-		assert.Equal(t, "value", o.Value)
-		assert.NotNil(t, o.Do)
-		assert.Equal(t, time.Minute, o.ttl())
-		assert.True(t, o.SetXX)
-		assert.True(t, o.SetNX)
-		assert.True(t, o.SkipLocal)
-		assert.True(t, o.Refresh)
+		assert.Equal(t, "getValue", o.value)
+		assert.NotNil(t, o.do)
+		assert.Equal(t, time.Minute, o.getTtl())
+		assert.True(t, o.setXX)
+		assert.True(t, o.setNX)
+		assert.True(t, o.skipLocal)
+		assert.True(t, o.refresh)
 	})
 }
 
@@ -61,7 +61,7 @@ func TestItemTTL(t *testing.T) {
 	}
 
 	for _, v := range tests {
-		item := &item{TTL: v.input}
-		assert.Equal(t, v.expect, item.ttl())
+		item := &item{ttl: v.input}
+		assert.Equal(t, v.expect, item.getTtl())
 	}
 }

@@ -12,34 +12,34 @@ const defaultTTL = time.Hour
 type (
 	// ItemOption defines the method to customize an Options.
 	ItemOption func(o *item)
-	// DoFunc returns value to be cached.
+	// DoFunc returns getValue to be cached.
 	DoFunc func() (interface{}, error)
 
 	item struct {
-		Ctx       context.Context
-		Key       string
-		Value     interface{}   // Value gets the value for the given key and fills into value.
-		TTL       time.Duration // TTL is the remote cache expiration time. Default TTL is 1 hour.
-		Do        DoFunc        // Do is DoFunc
-		SetXX     bool          // SetXX only sets the key if it already exists.
-		SetNX     bool          // SetNX only sets the key if it does not already exist.
-		SkipLocal bool          // SkipLocal skips local cache as if it is not set.
-		Refresh   bool          // Refresh open cache async refresh.
+		ctx       context.Context
+		key       string
+		value     interface{}   // value gets the value for the given key and fills into value.
+		ttl       time.Duration // ttl is the remote cache expiration time. Default ttl is 1 hour.
+		do        DoFunc        // do is DoFunc
+		setXX     bool          // setXX only sets the key if it already exists.
+		setNX     bool          // setNX only sets the key if it does not already exist.
+		skipLocal bool          // skipLocal skips local cache as if it is not set.
+		refresh   bool          // refresh open cache async refresh.
 	}
 
 	refreshTask struct {
-		Key            string
-		TTL            time.Duration
-		Do             DoFunc
-		SetXX          bool
-		SetNX          bool
-		SkipLocal      bool
-		LastAccessTime time.Time
+		key            string
+		ttl            time.Duration
+		do             DoFunc
+		setXX          bool
+		setNX          bool
+		skipLocal      bool
+		lastAccessTime time.Time
 	}
 )
 
 func newItemOptions(ctx context.Context, key string, opts ...ItemOption) *item {
-	var item = item{Ctx: ctx, Key: key}
+	var item = item{ctx: ctx, key: key}
 	for _, opt := range opts {
 		opt(&item)
 	}
@@ -49,74 +49,74 @@ func newItemOptions(ctx context.Context, key string, opts ...ItemOption) *item {
 
 func Value(value interface{}) ItemOption {
 	return func(o *item) {
-		o.Value = value
+		o.value = value
 	}
 }
 
 func TTL(ttl time.Duration) ItemOption {
 	return func(o *item) {
-		o.TTL = ttl
+		o.ttl = ttl
 	}
 }
 
 func Do(do DoFunc) ItemOption {
 	return func(o *item) {
-		o.Do = do
+		o.do = do
 	}
 }
 
 func SetXX(setXx bool) ItemOption {
 	return func(o *item) {
-		o.SetXX = setXx
+		o.setXX = setXx
 	}
 }
 
 func SetNX(setNx bool) ItemOption {
 	return func(o *item) {
-		o.SetNX = setNx
+		o.setNX = setNx
 	}
 }
 
 func SkipLocal(skipLocal bool) ItemOption {
 	return func(o *item) {
-		o.SkipLocal = skipLocal
+		o.skipLocal = skipLocal
 	}
 }
 
 func Refresh(refresh bool) ItemOption {
 	return func(o *item) {
-		o.Refresh = refresh
+		o.refresh = refresh
 	}
 }
 
 func (item *item) Context() context.Context {
-	if item.Ctx == nil {
+	if item.ctx == nil {
 		return context.Background()
 	}
-	return item.Ctx
+	return item.ctx
 }
 
-func (item *item) value() (interface{}, error) {
-	if item.Do != nil {
-		return item.Do()
+func (item *item) getValue() (interface{}, error) {
+	if item.do != nil {
+		return item.do()
 	}
-	if item.Value != nil {
-		return item.Value, nil
+	if item.value != nil {
+		return item.value, nil
 	}
 	return nil, nil
 }
 
-func (item *item) ttl() time.Duration {
-	if item.TTL < 0 {
+func (item *item) getTtl() time.Duration {
+	if item.ttl < 0 {
 		return 0
 	}
 
-	if item.TTL != 0 {
-		if item.TTL < time.Second {
-			logger.Warn("too short TTL for key=%q: %s", item.Key, item.TTL)
+	if item.ttl != 0 {
+		if item.ttl < time.Second {
+			logger.Warn("too short ttl for key=%q: %s", item.key, item.ttl)
 			return defaultTTL
 		}
-		return item.TTL
+		return item.ttl
 	}
 
 	return defaultTTL
@@ -124,10 +124,10 @@ func (item *item) ttl() time.Duration {
 
 func (item *item) toRefreshTask() *refreshTask {
 	return &refreshTask{
-		Key:            item.Key,
-		TTL:            item.TTL,
-		Do:             item.Do,
-		SkipLocal:      item.SkipLocal,
-		LastAccessTime: time.Now(),
+		key:            item.key,
+		ttl:            item.ttl,
+		do:             item.do,
+		skipLocal:      item.skipLocal,
+		lastAccessTime: time.Now(),
 	}
 }
