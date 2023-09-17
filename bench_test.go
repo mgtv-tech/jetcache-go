@@ -30,7 +30,7 @@ func tInit() {
 func BenchmarkOnceWithTinyLFU(b *testing.B) {
 	tInit()
 
-	cache := newBoth(rdb, tinyLFU, nil)
+	cache := newBoth(rdb, tinyLFU)
 	obj := &object{
 		Str: strings.Repeat("my very large string", 10),
 		Num: 42,
@@ -57,7 +57,7 @@ func BenchmarkOnceWithTinyLFU(b *testing.B) {
 func BenchmarkSetWithTinyLFU(b *testing.B) {
 	tInit()
 
-	cache := newBoth(rdb, tinyLFU, nil)
+	cache := newBoth(rdb, tinyLFU)
 	obj := &object{
 		Str: strings.Repeat("my very large string", 10),
 		Num: 42,
@@ -77,7 +77,7 @@ func BenchmarkSetWithTinyLFU(b *testing.B) {
 func BenchmarkOnceWithFreeCache(b *testing.B) {
 	tInit()
 
-	cache := newBoth(rdb, freeCache, nil)
+	cache := newBoth(rdb, freeCache)
 	obj := &object{
 		Str: strings.Repeat("my very large string", 10),
 		Num: 42,
@@ -105,7 +105,7 @@ func BenchmarkOnceWithFreeCache(b *testing.B) {
 func BenchmarkSetWithFreeCache(b *testing.B) {
 	tInit()
 
-	cache := newBoth(rdb, freeCache, nil)
+	cache := newBoth(rdb, freeCache)
 	obj := &object{
 		Str: strings.Repeat("my very large string", 10),
 		Num: 42,
@@ -123,7 +123,7 @@ func BenchmarkSetWithFreeCache(b *testing.B) {
 }
 
 var (
-	asyncCache *Cache
+	asyncCache Cache
 	newOnce    sync.Once
 )
 
@@ -183,7 +183,7 @@ func BenchmarkOnceRefreshWithStats(b *testing.B) {
 	})
 }
 
-func newRefreshBoth() *Cache {
+func newRefreshBoth() Cache {
 	tInit()
 
 	newOnce.Do(func() {

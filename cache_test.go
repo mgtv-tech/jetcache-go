@@ -17,7 +17,6 @@ import (
 
 	"github.com/daoshenzzg/jetcache-go/local"
 	"github.com/daoshenzzg/jetcache-go/remote"
-	"github.com/daoshenzzg/jetcache-go/stats"
 	"github.com/daoshenzzg/jetcache-go/util"
 )
 
@@ -33,7 +32,7 @@ const (
 
 	localExpire                = time.Minute
 	refreshDuration            = time.Second
-	stopRefreshAfterLastAccess = refreshDuration + 900*time.Millisecond
+	stopRefreshAfterLastAccess = time.Minute
 )
 
 type (
@@ -41,9 +40,6 @@ type (
 	object    struct {
 		Str string
 		Num int
-	}
-	testState struct {
-		Query uint64
 	}
 )
 
@@ -75,13 +71,12 @@ var _ = Describe("Cache", func() {
 	var (
 		obj   *object
 		rdb   *redis.Client
-		cache *Cache
-		stat  *testState
+		cache Cache
 	)
 
 	testCache := func() {
 		It("Remote and Local both nil", func() {
-			nilCache := New()
+			nilCache := New().(*jetCache)
 
 			err := nilCache.Get(ctx, "key", nil)
 			Expect(err).To(Equal(ErrRemoteLocalBothNil))
@@ -90,7 +85,7 @@ var _ = Describe("Cache", func() {
 			Expect(err).To(Equal(ErrRemoteLocalBothNil))
 
 			err = nilCache.Set(ctx, "key", Do(func() (interface{}, error) {
-				return "value", nil
+				return "getValue", nil
 			}))
 			Expect(err).To(Equal(ErrRemoteLocalBothNil))
 
@@ -238,7 +233,7 @@ var _ = Describe("Cache", func() {
 				Expect(err).To(Equal(errAny))
 			})
 
-			It("works without Value and error result", func() {
+			It("works without value and error result", func() {
 				var callCount int64
 				perform(100, func(int) {
 					err := cache.Once(ctx, key, Do(func() (interface{}, error) {
@@ -285,7 +280,7 @@ var _ = Describe("Cache", func() {
 				Expect(callCount).To(Equal(int64(2)))
 			})
 
-			It("skips Set when TTL = -1", func() {
+			It("skips Set when getTtl = -1", func() {
 				key := "skip-set"
 
 				var value string
@@ -301,52 +296,119 @@ var _ = Describe("Cache", func() {
 					Expect(exists).To(Equal(int64(0)))
 				}
 			})
+		})
 
-			It("Cache Refresh", func() {
+		Describe("Once func with refresh", func() {
+			It("refresh ok", func() {
 				var (
-					key1  = util.JoinAny(":", cache.CacheType(), "K1")
-					key2  = util.JoinAny(":", cache.CacheType(), "K2")
+					key    = util.JoinAny(":", cache.CacheType(), "K1")
+					ret    = "V1"
+					doFunc = func() (interface{}, error) {
+						return ret, nil
+					}
 					value string
 					err   error
 				)
-				err = cache.Once(ctx, key1, Value(&value), TTL(time.Minute), Refresh(true),
-					Do(func() (interface{}, error) {
-						return "V1", nil
-					}))
+				err = cache.Once(ctx, key, Value(&value), TTL(time.Minute), Refresh(true), Do(doFunc))
 				Expect(err).NotTo(HaveOccurred())
 				Expect(value).To(Equal("V1"))
-				err = cache.Once(ctx, key1, Value(&value), TTL(time.Minute), Refresh(true),
-					Do(func() (interface{}, error) {
-						return "V1", nil
-					}))
-				Expect(err).NotTo(HaveOccurred())
-				Expect(value).To(Equal("V1"))
-				Expect(stat.Query).To(Equal(uint64(1)))
 
-				err = cache.Once(ctx, key2, Value(&value), TTL(time.Minute), Refresh(true),
-					Do(func() (interface{}, error) {
-						return "V2", nil
-					}))
-				Expect(err).NotTo(HaveOccurred())
-				Expect(value).To(Equal("V2"))
-				Expect(atomic.LoadUint64(&stat.Query)).To(Equal(uint64(2)))
-				Expect(cache.TaskSize()).To(Equal(2))
-
-				time.Sleep(refreshDuration + 100*time.Millisecond)
-				err = cache.Get(ctx, key1, &value)
-				Expect(err).NotTo(HaveOccurred())
-				Expect(value).To(Equal("V1"))
-				Expect(atomic.LoadUint64(&stat.Query)).To(Equal(uint64(4)))
-				Expect(cache.TaskSize()).To(Equal(2))
-
-				time.Sleep(refreshDuration + refreshDuration/2)
-				err = cache.Get(ctx, key1, &value)
+				time.Sleep(refreshDuration / 2)
+				ret = "V2"
+				err = cache.Get(ctx, key, &value)
 				Expect(err).NotTo(HaveOccurred())
 				Expect(value).To(Equal("V1"))
 
 				time.Sleep(refreshDuration)
-				Expect(cache.TaskSize()).To(Equal(0))
-				Expect(atomic.LoadUint64(&stat.Query)).To(Equal(uint64(4)))
+				err = cache.Get(ctx, key, &value)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(value).To(Equal(ret))
+			})
+
+			It("refresh err", func() {
+				var (
+					key    = util.JoinAny(":", cache.CacheType(), "K1")
+					ret    = "V1"
+					first  = true
+					doFunc = func() (interface{}, error) {
+						if first {
+							first = false
+							return nil, errors.New("any")
+						}
+						return ret, nil
+					}
+					value string
+					err   error
+				)
+				err = cache.Once(ctx, key, Value(&value), TTL(time.Minute), Refresh(true), Do(doFunc))
+				Expect(err).To(Equal(errors.New("any")))
+				Expect(value).To(BeEmpty())
+
+				time.Sleep(refreshDuration / 2)
+				err2 := cache.Get(ctx, key, &value)
+				Expect(err2).To(Equal(err2))
+
+				time.Sleep(refreshDuration)
+				err = cache.Get(ctx, key, &value)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(value).To(Equal("V1"))
+			})
+
+			It("work with refreshLocal", func() {
+				if cache.CacheType() != TypeBoth {
+					return
+				}
+				var (
+					jetCache = cache.(*jetCache)
+					key      = util.JoinAny(":", cache.CacheType(), "K1")
+					ret      = "V1"
+					doFunc   = func() (interface{}, error) {
+						return ret, nil
+					}
+					value string
+					err   error
+				)
+				err = jetCache.Once(ctx, key, Value(&value), TTL(time.Minute), Refresh(true), Do(doFunc))
+				Expect(err).NotTo(HaveOccurred())
+				Expect(value).To(Equal("V1"))
+
+				ret = "v2"
+				_, err = rdb.SetEX(ctx, key, ret, time.Minute).Result()
+				Expect(err).NotTo(HaveOccurred())
+				jetCache.refreshLocal(ctx, &refreshTask{key: key})
+
+				err = cache.Get(ctx, key, &value)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(value).To(Equal(ret))
+			})
+
+			It("work with externalLoad", func() {
+				if cache.CacheType() != TypeBoth {
+					return
+				}
+				var (
+					jetCache = cache.(*jetCache)
+					key      = util.JoinAny(":", cache.CacheType(), "K1")
+					ret      = "V1"
+					doFunc   = func() (interface{}, error) {
+						return ret, nil
+					}
+					value string
+					err   error
+				)
+				err = jetCache.Once(ctx, key, Value(&value), TTL(time.Minute), Refresh(true), Do(doFunc))
+				Expect(err).NotTo(HaveOccurred())
+				Expect(value).To(Equal("V1"))
+
+				_, err = rdb.Del(ctx, key).Result()
+				Expect(err).NotTo(HaveOccurred())
+
+				ret = "V2"
+				jetCache.externalLoad(ctx, &refreshTask{key: key, do: doFunc, ttl: time.Minute}, time.Now())
+
+				err = cache.Get(ctx, key, &value)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(value).To(Equal(ret))
 			})
 		})
 	}
@@ -360,9 +422,8 @@ var _ = Describe("Cache", func() {
 
 	Context("with only remote", func() {
 		BeforeEach(func() {
-			stat = &testState{}
 			rdb = newRdb()
-			cache = newRemote(rdb, stat)
+			cache = newRemote(rdb)
 		})
 
 		testCache()
@@ -376,9 +437,8 @@ var _ = Describe("Cache", func() {
 	for _, typ := range localTypes {
 		Context(fmt.Sprintf("with both remote and local(%v)", typ), func() {
 			BeforeEach(func() {
-				stat = &testState{}
 				rdb = newRdb()
-				cache = newBoth(rdb, typ, stat)
+				cache = newBoth(rdb, typ)
 			})
 
 			testCache()
@@ -386,9 +446,8 @@ var _ = Describe("Cache", func() {
 
 		Context(fmt.Sprintf("with only local(%v)", typ), func() {
 			BeforeEach(func() {
-				stat = &testState{}
 				rdb = nil
-				cache = newLocal(typ, stat)
+				cache = newLocal(typ)
 			})
 
 			testCache()
@@ -407,32 +466,29 @@ func newRdb() *redis.Client {
 	})
 }
 
-func newLocal(localType localType, stat stats.Handler) *Cache {
+func newLocal(localType localType) Cache {
 	return New(WithName("local"),
 		WithLocal(localNew(localType)),
 		WithErrNotFound(errTestNotFound),
 		WithRefreshDuration(refreshDuration),
-		WithStopRefreshAfterLastAccess(stopRefreshAfterLastAccess),
-		WithStatsHandler(stat))
+		WithStopRefreshAfterLastAccess(stopRefreshAfterLastAccess))
 }
 
-func newRemote(rds *redis.Client, stat stats.Handler) *Cache {
+func newRemote(rds *redis.Client) Cache {
 	return New(WithName("remote"),
 		WithRemote(remote.NewGoRedisV8Adaptor(rds)),
 		WithErrNotFound(errTestNotFound),
 		WithRefreshDuration(refreshDuration),
-		WithStopRefreshAfterLastAccess(stopRefreshAfterLastAccess),
-		WithStatsHandler(stat))
+		WithStopRefreshAfterLastAccess(stopRefreshAfterLastAccess))
 }
 
-func newBoth(rds *redis.Client, localType localType, stat stats.Handler) *Cache {
+func newBoth(rds *redis.Client, localType localType) Cache {
 	return New(WithName("both"),
 		WithRemote(remote.NewGoRedisV8Adaptor(rds)),
 		WithLocal(localNew(localType)),
 		WithErrNotFound(errTestNotFound),
 		WithRefreshDuration(refreshDuration),
-		WithStopRefreshAfterLastAccess(stopRefreshAfterLastAccess),
-		WithStatsHandler(stat))
+		WithStopRefreshAfterLastAccess(stopRefreshAfterLastAccess))
 }
 
 func localNew(localType localType) local.Local {
@@ -442,30 +498,4 @@ func localNew(localType localType) local.Local {
 		id := atomic.AddInt32(&localId, 1)
 		return local.NewFreeCache(256*local.MB, localExpire, strconv.Itoa(int(id)))
 	}
-}
-
-// ------------------------------------------------------------------------------
-func (s *testState) IncrHit() {
-}
-
-func (s *testState) IncrMiss() {
-}
-
-func (s *testState) IncrLocalHit() {
-}
-
-func (s *testState) IncrLocalMiss() {
-}
-
-func (s *testState) IncrRemoteHit() {
-}
-
-func (s *testState) IncrRemoteMiss() {
-}
-
-func (s *testState) IncrQuery() {
-	atomic.AddUint64(&s.Query, 1)
-}
-
-func (s *testState) IncrQueryFail(err error) {
 }
