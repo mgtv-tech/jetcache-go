@@ -1,13 +1,13 @@
 package cache
 
 import (
-	"github.com/daoshenzzg/jetcache-go/stats"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 
 	"github.com/daoshenzzg/jetcache-go/encoding/json"
+	"github.com/daoshenzzg/jetcache-go/stats"
 )
 
 func TestCacheOptions(t *testing.T) {
