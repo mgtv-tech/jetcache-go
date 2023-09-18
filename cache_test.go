@@ -300,21 +300,24 @@ var _ = Describe("Cache", func() {
 
 		Describe("Once func with refresh", func() {
 			It("refresh ok", func() {
+
 				var (
-					key    = util.JoinAny(":", cache.CacheType(), "K1")
-					ret    = "V1"
-					doFunc = func() (interface{}, error) {
-						return ret, nil
-					}
-					value string
-					err   error
+					key       = util.JoinAny(":", cache.CacheType(), "K1")
+					callCount int64
+					value     string
+					err       error
 				)
-				err = cache.Once(ctx, key, Value(&value), TTL(time.Minute), Refresh(true), Do(doFunc))
+				err = cache.Once(ctx, key, Value(&value), TTL(time.Minute), Refresh(true),
+					Do(func() (interface{}, error) {
+						if atomic.AddInt64(&callCount, 1) == 1 {
+							return "V1", nil
+						}
+						return "V2", nil
+					}))
 				Expect(err).NotTo(HaveOccurred())
 				Expect(value).To(Equal("V1"))
 
 				time.Sleep(refreshDuration / 2)
-				ret = "V2"
 				err = cache.Get(ctx, key, &value)
 				Expect(err).NotTo(HaveOccurred())
 				Expect(value).To(Equal("V1"))
@@ -322,25 +325,23 @@ var _ = Describe("Cache", func() {
 				time.Sleep(refreshDuration)
 				err = cache.Get(ctx, key, &value)
 				Expect(err).NotTo(HaveOccurred())
-				Expect(value).To(Equal(ret))
+				Expect(value).To(Equal("V2"))
 			})
 
 			It("refresh err", func() {
 				var (
-					key    = util.JoinAny(":", cache.CacheType(), "K1")
-					ret    = "V1"
-					first  = true
-					doFunc = func() (interface{}, error) {
-						if first {
-							first = false
-							return nil, errors.New("any")
-						}
-						return ret, nil
-					}
-					value string
-					err   error
+					key       = util.JoinAny(":", cache.CacheType(), "K1")
+					callCount int64
+					value     string
+					err       error
 				)
-				err = cache.Once(ctx, key, Value(&value), TTL(time.Minute), Refresh(true), Do(doFunc))
+				err = cache.Once(ctx, key, Value(&value), TTL(time.Minute), Refresh(true),
+					Do(func() (interface{}, error) {
+						if atomic.AddInt64(&callCount, 1) == 1 {
+							return "", errors.New("any")
+						}
+						return "V1", nil
+					}))
 				Expect(err).To(Equal(errors.New("any")))
 				Expect(value).To(BeEmpty())
 
@@ -361,25 +362,23 @@ var _ = Describe("Cache", func() {
 				var (
 					jetCache = cache.(*jetCache)
 					key      = util.JoinAny(":", cache.CacheType(), "K1")
-					ret      = "V1"
-					doFunc   = func() (interface{}, error) {
-						return ret, nil
-					}
-					value string
-					err   error
+					value    string
+					err      error
 				)
-				err = jetCache.Once(ctx, key, Value(&value), TTL(time.Minute), Refresh(true), Do(doFunc))
+				err = jetCache.Once(ctx, key, Value(&value), TTL(time.Minute), Refresh(true),
+					Do(func() (interface{}, error) {
+						return "V1", nil
+					}))
 				Expect(err).NotTo(HaveOccurred())
 				Expect(value).To(Equal("V1"))
 
-				ret = "v2"
-				_, err = rdb.SetEX(ctx, key, ret, time.Minute).Result()
+				_, err = rdb.SetEX(ctx, key, "V2", time.Minute).Result()
 				Expect(err).NotTo(HaveOccurred())
 				jetCache.refreshLocal(ctx, &refreshTask{key: key})
 
 				err = cache.Get(ctx, key, &value)
 				Expect(err).NotTo(HaveOccurred())
-				Expect(value).To(Equal(ret))
+				Expect(value).To(Equal("V2"))
 			})
 
 			It("work with externalLoad", func() {
@@ -387,11 +386,14 @@ var _ = Describe("Cache", func() {
 					return
 				}
 				var (
-					jetCache = cache.(*jetCache)
-					key      = util.JoinAny(":", cache.CacheType(), "K1")
-					ret      = "V1"
-					doFunc   = func() (interface{}, error) {
-						return ret, nil
+					callCount int64
+					jetCache  = cache.(*jetCache)
+					key       = util.JoinAny(":", cache.CacheType(), "K1")
+					doFunc    = func() (interface{}, error) {
+						if atomic.AddInt64(&callCount, 1) == 1 {
+							return "V1", nil
+						}
+						return "V2", nil
 					}
 					value string
 					err   error
@@ -403,12 +405,11 @@ var _ = Describe("Cache", func() {
 				_, err = rdb.Del(ctx, key).Result()
 				Expect(err).NotTo(HaveOccurred())
 
-				ret = "V2"
 				jetCache.externalLoad(ctx, &refreshTask{key: key, do: doFunc, ttl: time.Minute}, time.Now())
 
 				err = cache.Get(ctx, key, &value)
 				Expect(err).NotTo(HaveOccurred())
-				Expect(value).To(Equal(ret))
+				Expect(value).To(Equal("V2"))
 			})
 		})
 	}
