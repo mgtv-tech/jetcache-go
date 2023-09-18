@@ -32,7 +32,7 @@ const (
 
 	localExpire                = time.Minute
 	refreshDuration            = time.Second
-	stopRefreshAfterLastAccess = time.Minute
+	stopRefreshAfterLastAccess = 3 * refreshDuration
 )
 
 type (
@@ -300,7 +300,6 @@ var _ = Describe("Cache", func() {
 
 		Describe("Once func with refresh", func() {
 			It("refresh ok", func() {
-
 				var (
 					key       = util.JoinAny(":", cache.CacheType(), "K1")
 					callCount int64
@@ -326,6 +325,8 @@ var _ = Describe("Cache", func() {
 				err = cache.Get(ctx, key, &value)
 				Expect(err).NotTo(HaveOccurred())
 				Expect(value).To(Equal("V2"))
+
+				time.Sleep(2 * refreshDuration)
 			})
 
 			It("refresh err", func() {
@@ -402,14 +403,54 @@ var _ = Describe("Cache", func() {
 				Expect(err).NotTo(HaveOccurred())
 				Expect(value).To(Equal("V1"))
 
-				_, err = rdb.Del(ctx, key).Result()
-				Expect(err).NotTo(HaveOccurred())
-
+				// shouldLoad SetNX true
 				jetCache.externalLoad(ctx, &refreshTask{key: key, do: doFunc, ttl: time.Minute}, time.Now())
-
 				err = cache.Get(ctx, key, &value)
 				Expect(err).NotTo(HaveOccurred())
 				Expect(value).To(Equal("V2"))
+
+				// shouldLoad SetNX false, must refreshLocal
+				_, err = rdb.SetEX(ctx, key, "V3", time.Minute).Result()
+				Expect(err).NotTo(HaveOccurred())
+				jetCache.externalLoad(ctx, &refreshTask{key: key, do: doFunc, ttl: time.Minute}, time.Now())
+				b, ok := jetCache.local.Get(key)
+				Expect(ok).To(BeTrue())
+				Expect(string(b)).To(Equal("V3"))
+			})
+
+			It("test addOrUpdateRefreshTask", func() {
+				var jetCache = cache.(*jetCache)
+				Expect(jetCache.TaskSize()).To(Equal(0))
+
+				key := util.JoinAny(":", cache.CacheType(), "K1")
+				now := time.Now()
+				item := &item{
+					key: key,
+					ttl: time.Minute,
+					do: func() (interface{}, error) {
+						return "V1", nil
+					},
+					refresh: true,
+				}
+				jetCache.addOrUpdateRefreshTask(item)
+				Expect(jetCache.TaskSize()).To(Equal(1))
+				ins, ok := jetCache.refreshTaskMap.Load(key)
+				Expect(ok).To(BeTrue())
+				task, ok := ins.(*refreshTask)
+				lastAccessTime := task.lastAccessTime
+				Expect(ok).To(BeTrue())
+				Expect(lastAccessTime.Compare(now) >= 0).To(BeTrue())
+
+				jetCache.addOrUpdateRefreshTask(item)
+				Expect(jetCache.TaskSize()).To(Equal(1))
+				ins, ok = jetCache.refreshTaskMap.Load(key)
+				Expect(ok).To(BeTrue())
+				task, ok = ins.(*refreshTask)
+				Expect(ok).To(BeTrue())
+				Expect(lastAccessTime.Compare(lastAccessTime) >= 0).To(BeTrue())
+
+				jetCache.cancel(key)
+				Expect(jetCache.TaskSize()).To(Equal(0))
 			})
 		})
 	}
