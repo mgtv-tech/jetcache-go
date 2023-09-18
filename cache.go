@@ -27,9 +27,10 @@ const (
 )
 
 var (
-	NotFoundPlaceholder   = []byte("*")
-	ErrCacheMiss          = errors.New("cache: key is missing")
-	ErrRemoteLocalBothNil = errors.New("cache: both remote and local are nil")
+	_                     Cache = (*jetCache)(nil)
+	NotFoundPlaceholder         = []byte("*")
+	ErrCacheMiss                = errors.New("cache: key is missing")
+	ErrRemoteLocalBothNil       = errors.New("cache: both remote and local are nil")
 )
 
 type (
