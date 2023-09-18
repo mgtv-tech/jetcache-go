@@ -1,6 +1,7 @@
 package cache
 
 import (
+	"github.com/daoshenzzg/jetcache-go/stats"
 	"testing"
 	"time"
 
@@ -57,6 +58,12 @@ func TestCacheOptions(t *testing.T) {
 		assert.Equal(t, defaultNotFoundExpiry, o.notFoundExpiry)
 		assert.Equal(t, defaultRefreshConcurrency, o.refreshConcurrency)
 		assert.Equal(t, json.Name, o.codec)
+	})
+
+	t.Run("with stats handler", func(t *testing.T) {
+		stat := stats.NewStatsLogger("any")
+		o := newOptions(WithStatsHandler(stat))
+		assert.Equal(t, stat, o.statsHandler)
 	})
 
 	t.Run("with stats disabled", func(t *testing.T) {
