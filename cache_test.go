@@ -439,7 +439,7 @@ var _ = Describe("Cache", func() {
 				task, ok := ins.(*refreshTask)
 				lastAccessTime := task.lastAccessTime
 				Expect(ok).To(BeTrue())
-				Expect(lastAccessTime.Compare(now) >= 0).To(BeTrue())
+				Expect(lastAccessTime.After(now)).To(BeTrue())
 
 				jetCache.addOrUpdateRefreshTask(item)
 				Expect(jetCache.TaskSize()).To(Equal(1))
@@ -447,7 +447,7 @@ var _ = Describe("Cache", func() {
 				Expect(ok).To(BeTrue())
 				task, ok = ins.(*refreshTask)
 				Expect(ok).To(BeTrue())
-				Expect(lastAccessTime.Compare(lastAccessTime) >= 0).To(BeTrue())
+				Expect(task.lastAccessTime.After(lastAccessTime)).To(BeTrue())
 
 				jetCache.cancel(key)
 				Expect(jetCache.TaskSize()).To(Equal(0))
