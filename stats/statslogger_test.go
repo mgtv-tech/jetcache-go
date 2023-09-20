@@ -9,7 +9,7 @@ import (
 )
 
 func TestStatLogger_statLoop(t *testing.T) {
-	t.Run("stat loop total 0", func(t *testing.T) {
+	t.Run("stat loop stats 0", func(t *testing.T) {
 		_ = NewStatsLogger("any", WithStatsInterval(time.Millisecond))
 		time.Sleep(10 * time.Millisecond)
 	})
@@ -24,6 +24,12 @@ func TestStatLogger_statLoop(t *testing.T) {
 		stat.IncrRemoteMiss()
 		stat.IncrQuery()
 		stat.IncrQueryFail(errors.New("any"))
+		time.Sleep(10 * time.Millisecond)
+	})
+
+	t.Run("stat loop query not 0", func(t *testing.T) {
+		stat := NewStatsLogger("any", WithStatsInterval(time.Millisecond))
+		stat.IncrQuery()
 		time.Sleep(10 * time.Millisecond)
 	})
 }
