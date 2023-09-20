@@ -191,7 +191,7 @@ func (c *jetCache) getBytes(ctx context.Context, key string, skipLocal bool) ([]
 	if err != nil {
 		c.statsHandler.IncrMiss()
 		c.statsHandler.IncrRemoteMiss()
-		if err == c.remote.Nil() {
+		if errors.Is(err, c.remote.Nil()) {
 			return nil, ErrCacheMiss
 		}
 		return nil, err
@@ -456,7 +456,7 @@ func (c *jetCache) externalLoad(ctx context.Context, task *refreshTask, now time
 		shouldLoad bool
 	)
 	_, err := c.remote.Get(ctx, lockKey)
-	if err == c.remote.Nil() {
+	if errors.Is(err, c.remote.Nil()) {
 		shouldLoad = true
 	} else if err != nil {
 		logger.Error("externalLoad#c.remote.Get(%s) error(%v)", lockKey, err)

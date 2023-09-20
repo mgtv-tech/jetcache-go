@@ -39,7 +39,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/go-redis/redis/v8"
+	"github.com/redis/go-redis/v9"
 
 	"github.com/daoshenzzg/jetcache-go"
 	"github.com/daoshenzzg/jetcache-go/local"
@@ -71,7 +71,7 @@ func Example_basicUsage() {
 	})
 
 	mycache := cache.New(cache.WithName("any"),
-		cache.WithRemote(remote.NewGoRedisV8Adaptor(ring)),
+		cache.WithRemote(remote.NewGoRedisV9Adaptor(ring)),
 		cache.WithLocal(local.NewFreeCache(256*local.MB, time.Minute)),
 		cache.WithErrNotFound(errRecordNotFound))
 
@@ -102,7 +102,7 @@ func Example_advancedUsage() {
 	})
 
 	mycache := cache.New(cache.WithName("any"),
-		cache.WithRemote(remote.NewGoRedisV8Adaptor(ring)),
+		cache.WithRemote(remote.NewGoRedisV9Adaptor(ring)),
 		cache.WithLocal(local.NewFreeCache(256*local.MB, time.Minute)),
 		cache.WithErrNotFound(errRecordNotFound),
 		cache.WithRefreshDuration(time.Minute))
