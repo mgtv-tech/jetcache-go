@@ -10,7 +10,6 @@ import (
 
 	"github.com/daoshenzzg/jetcache-go"
 	"github.com/daoshenzzg/jetcache-go/local"
-	"github.com/daoshenzzg/jetcache-go/logger"
 	"github.com/daoshenzzg/jetcache-go/remote"
 	"github.com/daoshenzzg/jetcache-go/util"
 )
@@ -58,8 +57,6 @@ func Example_basicUsage() {
 }
 
 func Example_advancedUsage() {
-	logger.SetLevel(logger.LevelInfo)
-
 	ring := redis.NewRing(&redis.RingOptions{
 		Addrs: map[string]string{
 			"localhost": ":6379",
