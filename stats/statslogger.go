@@ -119,7 +119,7 @@ func (s *Stats) logStatSummary() {
 		localTotal  = localHit + localMiss
 	)
 
-	if total == 0 {
+	if total == 0 && query == 0 && queryFail == 0 {
 		return
 	}
 
