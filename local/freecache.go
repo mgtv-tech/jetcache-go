@@ -1,7 +1,7 @@
 package local
 
 import (
-	"math/rand"
+	"errors"
 	"sync"
 	"time"
 
@@ -20,8 +20,7 @@ var (
 
 type (
 	FreeCache struct {
-		mu             sync.Mutex
-		rand           *rand.Rand
+		safeRand       *util.SafeRand
 		ttl            time.Duration
 		offset         time.Duration
 		innerKeyPrefix string
@@ -58,7 +57,7 @@ func NewFreeCache(size Size, ttl time.Duration, innerKeyPrefix ...string) *FreeC
 
 	return &FreeCache{
 		innerKeyPrefix: prefix,
-		rand:           rand.New(rand.NewSource(time.Now().UnixNano())),
+		safeRand:       util.NewSafeRand(),
 		ttl:            ttl,
 		offset:         offset,
 	}
@@ -71,9 +70,7 @@ func (c *FreeCache) UseRandomizedTTL(offset time.Duration) {
 func (c *FreeCache) Set(key string, b []byte) {
 	ttl := c.ttl
 	if c.offset > 0 {
-		c.mu.Lock()
-		ttl += time.Duration(c.rand.Int63n(int64(c.offset)))
-		c.mu.Unlock()
+		ttl += time.Duration(c.safeRand.Int63n(int64(c.offset)))
 	}
 
 	if err := innerCache.Set(util.Bytes(c.Key(key)), b, int(ttl.Seconds())); err != nil {
@@ -84,7 +81,7 @@ func (c *FreeCache) Set(key string, b []byte) {
 func (c *FreeCache) Get(key string) ([]byte, bool) {
 	b, err := innerCache.Get(util.Bytes(c.Key(key)))
 	if err != nil {
-		if err == freecache.ErrNotFound {
+		if errors.Is(err, freecache.ErrNotFound) {
 			return nil, false
 		}
 		logger.Error("freeCache get(%s) error(%v)", key, err)

@@ -212,7 +212,7 @@ var _ = Describe("Cache", func() {
 				if cache.CacheType() == TypeRemote || cache.CacheType() == TypeBoth {
 					val, err := rdb.Get(context.Background(), key).Result()
 					Expect(err).To(BeNil())
-					Expect(val).To(Equal(string(NotFoundPlaceholder)))
+					Expect(val).To(Equal(string(notFoundPlaceholder)))
 				}
 
 				_ = cache.Set(ctx, key, Value(value), Do(do))
