@@ -16,7 +16,7 @@ Translate to: [简体中文](README_zh.md)
 - ✅ The Once interface adopts the `singleflight` pattern, which is highly concurrent and thread-safe.
 - ✅ By default, [MsgPack](https://github.com/vmihailenco/msgpack) is used for encoding and decoding values.
 - ✅ The default local cache implementation includes [TinyLFU](https://github.com/dgryski/go-tinylfu) and [FreeCache](https://github.com/coocood/freecache).
-- ✅ The default distributed cache implementation is based on [go-redis/v9](https://github.com/redis/go-redis), and you can also customize your own implementation.
+- ✅ The default distributed cache implementation is based on [go-redis/v8](https://github.com/redis/go-redis), and you can also customize your own implementation.
 - ✅ You can customize the errNotFound error and use placeholders to prevent cache penetration by caching empty results.
 - ✅ Supports asynchronous refreshing of distributed caches.
 - ✅ Metrics collection: By default, it prints statistical metrics (QPM, Hit, Miss, Query, QueryFail) through logs.
@@ -40,11 +40,10 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/redis/go-redis/v9"
+	"github.com/go-redis/redis/v8"
 
 	"github.com/daoshenzzg/jetcache-go"
 	"github.com/daoshenzzg/jetcache-go/local"
-	"github.com/daoshenzzg/jetcache-go/logger"
 	"github.com/daoshenzzg/jetcache-go/remote"
 	"github.com/daoshenzzg/jetcache-go/util"
 )
@@ -72,7 +71,7 @@ func Example_basicUsage() {
 	})
 
 	mycache := cache.New(cache.WithName("any"),
-		cache.WithRemote(remote.NewGoRedisV9Adaptor(ring)),
+		cache.WithRemote(remote.NewGoRedisV8Adaptor(ring)),
 		cache.WithLocal(local.NewFreeCache(256*local.MB, time.Minute)),
 		cache.WithErrNotFound(errRecordNotFound))
 	
@@ -103,7 +102,7 @@ func Example_advancedUsage() {
 	})
 
 	mycache := cache.New(cache.WithName("any"),
-		cache.WithRemote(remote.NewGoRedisV9Adaptor(ring)),
+		cache.WithRemote(remote.NewGoRedisV8Adaptor(ring)),
 		cache.WithLocal(local.NewFreeCache(256*local.MB, time.Minute)),
 		cache.WithErrNotFound(errRecordNotFound),
 		cache.WithRefreshDuration(time.Minute))
