@@ -5,7 +5,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"math/rand"
 	"strconv"
 	"sync"
 	"time"
@@ -28,7 +27,7 @@ const (
 
 var (
 	_                     Cache = (*jetCache)(nil)
-	NotFoundPlaceholder         = []byte("*")
+	notFoundPlaceholder         = []byte("*")
 	ErrCacheMiss                = errors.New("cache: key is missing")
 	ErrRemoteLocalBothNil       = errors.New("cache: both remote and local are nil")
 )
@@ -67,7 +66,7 @@ type (
 		sync.Mutex
 		Options
 		group          singleflight.Group
-		rand           *rand.Rand
+		safeRand       *util.SafeRand
 		refreshTaskMap sync.Map
 		stopChan       chan struct{}
 	}
@@ -77,7 +76,7 @@ func New(opts ...Option) Cache {
 	o := newOptions(opts...)
 	cache := &jetCache{
 		Options:  o,
-		rand:     rand.New(rand.NewSource(time.Now().UnixNano())),
+		safeRand: util.NewSafeRand(),
 		stopChan: make(chan struct{}),
 	}
 
@@ -103,9 +102,9 @@ func (c *jetCache) set(item *item) ([]byte, bool, error) {
 
 	if c.IsNotFound(err) {
 		if e := c.setNotFound(item.Context(), item.key, item.skipLocal); e != nil {
-			logger.Error("setNotFound error(%v)", err)
+			logger.Error("setNotFound(%s) error(%v)", item.key, err)
 		}
-		return NotFoundPlaceholder, true, nil
+		return notFoundPlaceholder, true, nil
 	} else if err != nil {
 		c.statsHandler.IncrQueryFail(err)
 		return nil, false, err
@@ -171,7 +170,7 @@ func (c *jetCache) getBytes(ctx context.Context, key string, skipLocal bool) ([]
 		if ok {
 			c.statsHandler.IncrHit()
 			c.statsHandler.IncrLocalHit()
-			if bytes.Compare(b, NotFoundPlaceholder) == 0 {
+			if bytes.Compare(b, notFoundPlaceholder) == 0 {
 				return nil, c.errNotFound
 			}
 			return b, nil
@@ -201,7 +200,7 @@ func (c *jetCache) getBytes(ctx context.Context, key string, skipLocal bool) ([]
 	c.statsHandler.IncrRemoteHit()
 
 	b := util.Bytes(s)
-	if bytes.Compare(b, NotFoundPlaceholder) == 0 {
+	if bytes.Compare(b, notFoundPlaceholder) == 0 {
 		return nil, c.errNotFound
 	}
 
@@ -222,7 +221,7 @@ func (c *jetCache) Once(ctx context.Context, key string, opts ...ItemOption) err
 		return err
 	}
 
-	if bytes.Compare(b, NotFoundPlaceholder) == 0 {
+	if bytes.Compare(b, notFoundPlaceholder) == 0 {
 		return c.errNotFound
 	}
 
@@ -247,7 +246,7 @@ func (c *jetCache) getSetItemBytesOnce(item *item) (b []byte, cached bool, err e
 		if ok {
 			c.statsHandler.IncrHit()
 			c.statsHandler.IncrLocalHit()
-			if bytes.Compare(b, NotFoundPlaceholder) == 0 {
+			if bytes.Compare(b, notFoundPlaceholder) == 0 {
 				return nil, true, c.errNotFound
 			}
 			return b, true, nil
@@ -259,7 +258,7 @@ func (c *jetCache) getSetItemBytesOnce(item *item) (b []byte, cached bool, err e
 		if err == nil {
 			cached = true
 			return b, nil
-		} else if err == c.errNotFound {
+		} else if errors.Is(err, c.errNotFound) {
 			cached = true
 			return nil, c.errNotFound
 		}
@@ -311,7 +310,7 @@ func (c *jetCache) IsNotFound(err error) bool {
 
 func (c *jetCache) setNotFound(ctx context.Context, key string, skipLocal bool) error {
 	if c.local != nil && !skipLocal {
-		c.local.Set(key, NotFoundPlaceholder)
+		c.local.Set(key, notFoundPlaceholder)
 	}
 
 	if c.remote == nil {
@@ -321,9 +320,9 @@ func (c *jetCache) setNotFound(ctx context.Context, key string, skipLocal bool) 
 		return nil
 	}
 
-	ttl := c.notFoundExpiry + time.Duration(c.rand.Int63n(int64(c.offset)))
+	ttl := c.notFoundExpiry + time.Duration(c.safeRand.Int63n(int64(c.offset)))
 
-	return c.remote.SetEX(ctx, key, NotFoundPlaceholder, ttl)
+	return c.remote.SetEX(ctx, key, notFoundPlaceholder, ttl)
 }
 
 func (c *jetCache) Marshal(val interface{}) ([]byte, error) {
