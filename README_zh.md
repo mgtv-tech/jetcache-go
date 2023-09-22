@@ -15,7 +15,7 @@ Translations: [English](README.md) | [简体中文](README_zh.md)
 - ✅ Once接口采用单飞(`singleflight`)模式，高并发且线程安全
 - ✅ 默认采用[MsgPack](https://github.com/vmihailenco/msgpack)来编解码Value
 - ✅ 本地缓存默认实现了[TinyLFU](https://github.com/dgryski/go-tinylfu)和[FreeCache](https://github.com/coocood/freecache)
-- ✅ 分布式缓存默认实现了[go-redis/v9](https://github.com/redis/go-redis)的适配器，你也可以自定义实现
+- ✅ 分布式缓存默认实现了[go-redis/v8](https://github.com/redis/go-redis)的适配器，你也可以自定义实现
 - ✅ 可以自定义`errNotFound`，通过占位符替换，缓存空结果防止缓存穿透
 - ✅ 支持开启分布式缓存异步刷新
 - ✅ 指标采集，默认实现了通过日志打印各级缓存的统计指标（QPM、Hit、Miss、Query、QueryFail）
@@ -39,11 +39,10 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/redis/go-redis/v9"
+	"github.com/go-redis/redis/v8"
 
 	"github.com/daoshenzzg/jetcache-go"
 	"github.com/daoshenzzg/jetcache-go/local"
-	"github.com/daoshenzzg/jetcache-go/logger"
 	"github.com/daoshenzzg/jetcache-go/remote"
 	"github.com/daoshenzzg/jetcache-go/util"
 )
@@ -71,7 +70,7 @@ func Example_basicUsage() {
 	})
 
 	mycache := cache.New(cache.WithName("any"),
-		cache.WithRemote(remote.NewGoRedisV9Adaptor(ring)),
+		cache.WithRemote(remote.NewGoRedisV8Adaptor(ring)),
 		cache.WithLocal(local.NewFreeCache(256*local.MB, time.Minute)),
 		cache.WithErrNotFound(errRecordNotFound))
 
@@ -102,7 +101,7 @@ func Example_advancedUsage() {
 	})
 
 	mycache := cache.New(cache.WithName("any"),
-		cache.WithRemote(remote.NewGoRedisV9Adaptor(ring)),
+		cache.WithRemote(remote.NewGoRedisV8Adaptor(ring)),
 		cache.WithLocal(local.NewFreeCache(256*local.MB, time.Minute)),
 		cache.WithErrNotFound(errRecordNotFound),
 		cache.WithRefreshDuration(time.Minute))
