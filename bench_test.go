@@ -41,7 +41,7 @@ func BenchmarkOnceWithTinyLFU(b *testing.B) {
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
 			var dst object
-			err := cache.Once(context.TODO(), "bench-once", Value(&dst), Do(func() (interface{}, error) {
+			err := cache.Once(context.TODO(), "bench-once", Value(&dst), Do(func(context.Context) (interface{}, error) {
 				return obj, nil
 			}))
 			if err != nil {
@@ -89,7 +89,7 @@ func BenchmarkOnceWithFreeCache(b *testing.B) {
 		for pb.Next() {
 			var dst object
 			err := cache.Once(context.TODO(), "bench-once", Value(&dst),
-				Do(func() (interface{}, error) {
+				Do(func(context.Context) (interface{}, error) {
 					return obj, nil
 				}))
 			if err != nil {
@@ -140,7 +140,7 @@ func BenchmarkOnceWithStats(b *testing.B) {
 		for pb.Next() {
 			var dst object
 			err := cache.Once(context.TODO(), "bench-once_"+strconv.Itoa(rand.Intn(256)),
-				Value(&dst), Do(func() (interface{}, error) {
+				Value(&dst), Do(func(context.Context) (interface{}, error) {
 					time.Sleep(50 * time.Millisecond)
 					return obj, nil
 				}))
@@ -168,7 +168,7 @@ func BenchmarkOnceRefreshWithStats(b *testing.B) {
 		for pb.Next() {
 			var dst object
 			err := cache.Once(context.TODO(), "bench-refresh_"+strconv.Itoa(rand.Intn(256)),
-				Value(&dst), Do(func() (interface{}, error) {
+				Value(&dst), Do(func(context.Context) (interface{}, error) {
 					time.Sleep(50 * time.Millisecond)
 					return obj, nil
 				}),

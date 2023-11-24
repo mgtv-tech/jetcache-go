@@ -28,7 +28,7 @@ func TestItemOptions(t *testing.T) {
 	t.Run("with item options", func(t *testing.T) {
 		o := newItemOptions(context.TODO(), "key", Value("getValue"),
 			TTL(time.Minute), SetXX(true), SetNX(true), SkipLocal(true),
-			Refresh(true), Do(func() (interface{}, error) {
+			Refresh(true), Do(func(context.Context) (interface{}, error) {
 				return "any", nil
 			}))
 		assert.Equal(t, "getValue", o.value)

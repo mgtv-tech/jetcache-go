@@ -13,7 +13,7 @@ type (
 	// ItemOption defines the method to customize an Options.
 	ItemOption func(o *item)
 	// DoFunc returns getValue to be cached.
-	DoFunc func() (interface{}, error)
+	DoFunc func(ctx context.Context) (interface{}, error)
 
 	item struct {
 		ctx       context.Context
@@ -98,7 +98,7 @@ func (item *item) Context() context.Context {
 
 func (item *item) getValue() (interface{}, error) {
 	if item.do != nil {
-		return item.do()
+		return item.do(item.Context())
 	}
 	if item.value != nil {
 		return item.value, nil
