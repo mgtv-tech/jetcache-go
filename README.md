@@ -110,7 +110,7 @@ func Example_advancedUsage() {
 	ctx := context.TODO()
 	key := util.JoinAny(":", "mykey", 1)
 	obj := new(object)
-	if err := mycache.Once(ctx, key, cache.Value(obj), cache.Refresh(true), cache.Do(func() (interface{}, error) {
+	if err := mycache.Once(ctx, key, cache.Value(obj), cache.Refresh(true), cache.Do(func(ctx context.Context) (interface{}, error) {
 		return mockDBGetObject(1)
 	})); err != nil {
 		panic(err)

@@ -84,7 +84,7 @@ var _ = Describe("Cache", func() {
 			err = nilCache.Delete(ctx, "key")
 			Expect(err).To(Equal(ErrRemoteLocalBothNil))
 
-			err = nilCache.Set(ctx, "key", Do(func() (interface{}, error) {
+			err = nilCache.Set(ctx, "key", Do(func(context.Context) (interface{}, error) {
 				return "getValue", nil
 			}))
 			Expect(err).To(Equal(ErrRemoteLocalBothNil))
@@ -201,7 +201,7 @@ var _ = Describe("Cache", func() {
 		Describe("Once func", func() {
 			It("works with err not found", func() {
 				key := "cache-err-not-found"
-				do := func() (interface{}, error) {
+				do := func(context.Context) (interface{}, error) {
 					return nil, errTestNotFound
 				}
 				var value string
@@ -216,7 +216,7 @@ var _ = Describe("Cache", func() {
 				}
 
 				_ = cache.Set(ctx, key, Value(value), Do(do))
-				do = func() (interface{}, error) {
+				do = func(context.Context) (interface{}, error) {
 					return nil, nil
 				}
 				err = cache.Once(ctx, key, Value(&value), Do(do))
@@ -226,7 +226,7 @@ var _ = Describe("Cache", func() {
 
 				_ = cache.Delete(context.Background(), key)
 				errAny := errors.New("any")
-				do = func() (interface{}, error) {
+				do = func(context.Context) (interface{}, error) {
 					return nil, errAny
 				}
 				err = cache.Once(ctx, key, Value(&value), Do(do))
@@ -236,7 +236,7 @@ var _ = Describe("Cache", func() {
 			It("works without value and error result", func() {
 				var callCount int64
 				perform(100, func(int) {
-					err := cache.Once(ctx, key, Do(func() (interface{}, error) {
+					err := cache.Once(ctx, key, Do(func(context.Context) (interface{}, error) {
 						time.Sleep(100 * time.Millisecond)
 						atomic.AddInt64(&callCount, 1)
 						return nil, errors.New("error stub")
@@ -250,7 +250,7 @@ var _ = Describe("Cache", func() {
 				var callCount int64
 				do := func(sleep time.Duration) (int, error) {
 					var n int
-					err := cache.Once(ctx, key, Value(&n), Do(func() (interface{}, error) {
+					err := cache.Once(ctx, key, Value(&n), Do(func(context.Context) (interface{}, error) {
 						time.Sleep(sleep)
 
 						n := atomic.AddInt64(&callCount, 1)
@@ -284,7 +284,7 @@ var _ = Describe("Cache", func() {
 				key := "skip-set"
 
 				var value string
-				err := cache.Once(ctx, key, Value(&value), TTL(-1), Do(func() (interface{}, error) {
+				err := cache.Once(ctx, key, Value(&value), TTL(-1), Do(func(context.Context) (interface{}, error) {
 					return "hello", nil
 				}))
 				Expect(err).NotTo(HaveOccurred())
@@ -307,7 +307,7 @@ var _ = Describe("Cache", func() {
 					err       error
 				)
 				err = cache.Once(ctx, key, Value(&value), TTL(time.Minute), Refresh(true),
-					Do(func() (interface{}, error) {
+					Do(func(context.Context) (interface{}, error) {
 						if atomic.AddInt64(&callCount, 1) == 1 {
 							return "V1", nil
 						}
@@ -337,7 +337,7 @@ var _ = Describe("Cache", func() {
 					err       error
 				)
 				err = cache.Once(ctx, key, Value(&value), TTL(time.Minute), Refresh(true),
-					Do(func() (interface{}, error) {
+					Do(func(context.Context) (interface{}, error) {
 						if atomic.AddInt64(&callCount, 1) == 1 {
 							return "", errors.New("any")
 						}
@@ -367,7 +367,7 @@ var _ = Describe("Cache", func() {
 					err      error
 				)
 				err = jetCache.Once(ctx, key, Value(&value), TTL(time.Minute), Refresh(true),
-					Do(func() (interface{}, error) {
+					Do(func(context.Context) (interface{}, error) {
 						return "V1", nil
 					}))
 				Expect(err).NotTo(HaveOccurred())
@@ -390,7 +390,7 @@ var _ = Describe("Cache", func() {
 					callCount int64
 					jetCache  = cache.(*jetCache)
 					key       = util.JoinAny(":", cache.CacheType(), "K1")
-					doFunc    = func() (interface{}, error) {
+					doFunc    = func(context.Context) (interface{}, error) {
 						if atomic.AddInt64(&callCount, 1) == 1 {
 							return "V1", nil
 						}
@@ -427,7 +427,7 @@ var _ = Describe("Cache", func() {
 					jetCache = cache.(*jetCache)
 					key      = util.JoinAny(":", cache.CacheType(), "K1")
 					lockKey  = fmt.Sprintf("%s%s", key, lockKeySuffix)
-					doFunc   = func() (interface{}, error) {
+					doFunc   = func(context.Context) (interface{}, error) {
 						return "V1", nil
 					}
 					value string
@@ -466,7 +466,7 @@ var _ = Describe("Cache", func() {
 				item := &item{
 					key: key,
 					ttl: time.Minute,
-					do: func() (interface{}, error) {
+					do: func(context.Context) (interface{}, error) {
 						return "V1", nil
 					},
 					refresh: true,

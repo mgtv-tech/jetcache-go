@@ -481,7 +481,7 @@ func (c *jetCache) externalLoad(ctx context.Context, task *refreshTask, now time
 			return
 		}
 	} else if c.local != nil {
-		// If this coroutine fails to acquire the concurrent lock, it needs to wait briefly (delay) to trigger a refresh.
+		// If this goroutine fails to acquire the concurrent lock, it needs to wait briefly (delay) to trigger a refresh.
 		// This way, it can directly fetch the origin result from Redis and refresh it locally.
 		// The maximum concurrency here refers to the number of web machine instances, and the probability of
 		// concurrent processing is actually not high. time.AfterFunc can be understood as a fallback mechanism to
