@@ -24,7 +24,7 @@ Translations: [English](README.md) | [简体中文](README_zh.md)
 # 安装
 使用最新版本的jetcache-go，您可以在项目中导入该库：
 ```shell
-go get https://github.com/daoshenzzg/jetcache-go
+go get github.com/daoshenzzg/jetcache-go
 ```
 
 ## 快速开始
