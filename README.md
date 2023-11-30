@@ -25,7 +25,7 @@ Translate to: [简体中文](README_zh.md)
 # Installation
 To start using the latest version of jetcache-go, you can import the library into your project:
 ```shell
-go get https://github.com/daoshenzzg/jetcache-go
+go get github.com/daoshenzzg/jetcache-go
 ```
 
 ## Getting started
