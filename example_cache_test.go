@@ -5,7 +5,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"testing"
 	"time"
 
 	"github.com/go-redis/redis/v8"
@@ -96,7 +95,7 @@ func Example_advancedUsage() {
 	mycache.Close()
 }
 
-func Test_Example_MGet(t *testing.T) {
+func Example_mGetUsage() {
 	ring := redis.NewRing(&redis.RingOptions{
 		Addrs: map[string]string{
 			"localhost": ":6379",
