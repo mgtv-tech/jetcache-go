@@ -5,14 +5,14 @@ type (
 	// Note that implementations of this interface must be thread-safe; the methods of a Handler
 	// can be called from concurrent goroutines.
 	Handler interface {
-		IncrHit()                // Increments the count of cache hits.
-		IncrMiss()               // Increments the count of cache misses.
-		IncrLocalHit()           // Increments the count of local cache hits.
-		IncrLocalMiss()          // Increments the count of local cache misses.
-		IncrRemoteHit()          // Increments the count of remote cache hits.
-		IncrRemoteMiss()         // Increments the count of remote cache misses.
-		IncrQuery()              // Increments the count of cache queries.
-		IncrQueryFail(err error) // Increments the count of failed cache queries and provides the error that occurred.
+		IncrHit()
+		IncrMiss()
+		IncrLocalHit()
+		IncrLocalMiss()
+		IncrRemoteHit()
+		IncrRemoteMiss()
+		IncrQuery()
+		IncrQueryFail(err error)
 	}
 
 	Handlers struct {
