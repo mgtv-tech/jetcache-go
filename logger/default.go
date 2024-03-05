@@ -25,7 +25,7 @@ type localLogger struct {
 	logger *log.Logger
 }
 
-func (ll *localLogger) logf(lv Level, format *string, v ...interface{}) {
+func (ll *localLogger) logf(lv Level, format *string, v ...any) {
 	if level > lv {
 		return
 	}
@@ -33,18 +33,18 @@ func (ll *localLogger) logf(lv Level, format *string, v ...interface{}) {
 	ll.logger.Output(4, msg)
 }
 
-func (ll *localLogger) Debug(format string, v ...interface{}) {
+func (ll *localLogger) Debug(format string, v ...any) {
 	ll.logf(LevelDebug, &format, v...)
 }
 
-func (ll *localLogger) Info(format string, v ...interface{}) {
+func (ll *localLogger) Info(format string, v ...any) {
 	ll.logf(LevelInfo, &format, v...)
 }
 
-func (ll *localLogger) Warn(format string, v ...interface{}) {
+func (ll *localLogger) Warn(format string, v ...any) {
 	ll.logf(LevelWarn, &format, v...)
 }
 
-func (ll *localLogger) Error(format string, v ...interface{}) {
+func (ll *localLogger) Error(format string, v ...any) {
 	ll.logf(LevelError, &format, v...)
 }

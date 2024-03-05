@@ -15,7 +15,7 @@ func TestSetDefaultLogger(t *testing.T) {
 	assert.Equal(t, tl, defaultLogger)
 }
 
-func (l *testLogger) Debug(format string, v ...interface{}) {}
-func (l *testLogger) Info(format string, v ...interface{})  {}
-func (l *testLogger) Warn(format string, v ...interface{})  {}
-func (l *testLogger) Error(format string, v ...interface{}) {}
+func (l *testLogger) Debug(format string, v ...any) {}
+func (l *testLogger) Info(format string, v ...any)  {}
+func (l *testLogger) Warn(format string, v ...any)  {}
+func (l *testLogger) Error(format string, v ...any) {}
