@@ -13,14 +13,15 @@ Translate to: [简体中文](README_zh.md)
 [JetCache](https://github.com/alibaba/jetcache), including:
 
 - ✅ Flexible combination of two-level caching: You can use memory, Redis, or your own custom storage method.
-- ✅ The Once interface adopts the `singleflight` pattern, which is highly concurrent and thread-safe.
-- ✅ By default, [MsgPack](https://github.com/vmihailenco/msgpack) is used for encoding and decoding values.
+- ✅ The `Once` interface adopts the `singleflight` pattern, which is highly concurrent and thread-safe.
+- ✅ By default, [sonic](https://github.com/bytedance/sonic) is used for encoding and decoding values. Optional [MsgPack](https://github.com/vmihailenco/msgpack) and native json.
 - ✅ The default local cache implementation includes [TinyLFU](https://github.com/dgryski/go-tinylfu) and [FreeCache](https://github.com/coocood/freecache).
 - ✅ The default distributed cache implementation is based on [go-redis/v8](https://github.com/redis/go-redis), and you can also customize your own implementation.
 - ✅ You can customize the errNotFound error and use placeholders to prevent cache penetration by caching empty results.
 - ✅ Supports asynchronous refreshing of distributed caches.
 - ✅ Metrics collection: By default, it prints statistical metrics (QPM, Hit, Miss, Query, QueryFail) through logs.
 - ✅ Automatic degradation of distributed cache query failures.
+- ✅ The `MGet` interface supports the `load`function. In a distributed caching scenario, the Pipeline mode is used to improve performance.
 
 # Installation
 To start using the latest version of jetcache-go, you can import the library into your project:
@@ -35,9 +36,11 @@ go get github.com/daoshenzzg/jetcache-go
 package cache_test
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
+	"testing"
 	"time"
 
 	"github.com/go-redis/redis/v8"
@@ -62,19 +65,29 @@ func mockDBGetObject(id int) (*object, error) {
 	return &object{Str: "mystring", Num: 42}, nil
 }
 
+func mockDBMGetObject(ids []int) (map[int]*object, error) {
+	ret := make(map[int]*object)
+	for _, id := range ids {
+		if id == 3 {
+			continue
+		}
+		ret[id] = &object{Str: "mystring", Num: id}
+	}
+	return ret, nil
+}
+
 func Example_basicUsage() {
 	ring := redis.NewRing(&redis.RingOptions{
 		Addrs: map[string]string{
-			"server1": ":6379",
-			"server2": ":6380",
+			"localhost": ":6379",
 		},
 	})
 
-	mycache := cache.New(cache.WithName("any"),
+	mycache := cache.New[string, any](cache.WithName("any"),
 		cache.WithRemote(remote.NewGoRedisV8Adaptor(ring)),
 		cache.WithLocal(local.NewFreeCache(256*local.MB, time.Minute)),
 		cache.WithErrNotFound(errRecordNotFound))
-	
+
 	ctx := context.TODO()
 	key := util.JoinAny(":", "mykey", 1)
 	obj, _ := mockDBGetObject(1)
@@ -92,16 +105,13 @@ func Example_basicUsage() {
 }
 
 func Example_advancedUsage() {
-	logger.SetLevel(logger.LevelInfo)
-
 	ring := redis.NewRing(&redis.RingOptions{
 		Addrs: map[string]string{
-			"server1": ":6379",
-			"server2": ":6380",
+			"localhost": ":6379",
 		},
 	})
 
-	mycache := cache.New(cache.WithName("any"),
+	mycache := cache.New[string, any](cache.WithName("any"),
 		cache.WithRemote(remote.NewGoRedisV8Adaptor(ring)),
 		cache.WithLocal(local.NewFreeCache(256*local.MB, time.Minute)),
 		cache.WithErrNotFound(errRecordNotFound),
@@ -110,13 +120,45 @@ func Example_advancedUsage() {
 	ctx := context.TODO()
 	key := util.JoinAny(":", "mykey", 1)
 	obj := new(object)
-	if err := mycache.Once(ctx, key, cache.Value(obj), cache.Refresh(true), cache.Do(func(ctx context.Context) (interface{}, error) {
+	if err := mycache.Once(ctx, key, cache.Value(obj), cache.Refresh(true), cache.Do(func(ctx context.Context) (any, error) {
 		return mockDBGetObject(1)
 	})); err != nil {
 		panic(err)
 	}
 	fmt.Println(obj)
 	//Output: &{mystring 42}
+
+	mycache.Close()
+}
+
+func Test_Example_MGet(t *testing.T) {
+	ring := redis.NewRing(&redis.RingOptions{
+		Addrs: map[string]string{
+			"localhost": ":6379",
+		},
+	})
+
+	mycache := cache.New[int, *object](cache.WithName("any"),
+		cache.WithRemote(remote.NewGoRedisV8Adaptor(ring)),
+		cache.WithLocal(local.NewFreeCache(256*local.MB, time.Minute)),
+		cache.WithErrNotFound(errRecordNotFound),
+		cache.WithRemoteExpiry(time.Minute),
+	)
+
+	ctx := context.TODO()
+	key := "mykey"
+	ids := []int{1, 2, 3}
+
+	ret := mycache.MGet(ctx, key, ids, func(ctx context.Context, ids []int) (map[int]*object, error) {
+		return mockDBMGetObject(ids)
+	})
+
+	var b bytes.Buffer
+	for _, id := range ids {
+		b.WriteString(fmt.Sprintf("%v", ret[id]))
+	}
+	fmt.Println(b.String())
+	//Output: &{mystring 1}&{mystring 2}<nil>
 
 	mycache.Close()
 }
@@ -131,6 +173,7 @@ type Options struct {
     local                      local.Local   // Local is memory cache, such as FreeCache.
     codec                      string        // Value encoding and decoding method. Default is "msgpack.Name". You can also customize it.
     errNotFound                error         // Error to return for cache miss. Used to prevent cache penetration.
+    remoteExpiry               time.Duration // Remote cache ttl, Default is 1 hour.
     notFoundExpiry             time.Duration // Duration for placeholder cache when there is a cache miss. Default is 1 minute.
     offset                     time.Duration // Expiration time jitter factor for cache misses.
     refreshDuration            time.Duration // Interval for asynchronous cache refresh. Default is 0 (refresh is disabled).
@@ -177,4 +220,39 @@ encoding.RegisterCodec(codec Codec)
 mycache := cache.New("any",
     cache.WithRemote(...),
     cache.WithCodec(yourCodecName string))
+```
+
+### Usage Scenarios
+
+#### Automatic Cache Refresh
+`jetcache-go` provides automatic cache refresh capability to prevent cache avalanche from hitting the database when the cache expires. Automatic refresh is suitable for scenarios with fewer keys, low real-time requirements, and high loading overhead. The above code specifies a refresh every minute, and stops refreshing after 1 hour if there is no access. If the cache is redis or the last level of a multi-level cache is redis, the cache loading behavior is globally unique, which means that only one server is refreshing at a time regardless of the number of servers, in order to reduce the load on the backend.
+```go
+mycache := cache.New[string, any](cache.WithName("any"),
+       // ...
+       // cache.WithRefreshDuration sets the asynchronous refresh interval
+       cache.WithRefreshDuration(time.Minute),
+       // cache.WithStopRefreshAfterLastAccess sets the time to cancel the refresh task after the cache key is not accessed
+        cache.WithStopRefreshAfterLastAccess(time.Hour))
+
+// `Once` interface starts automatic refresh by `cache.Refresh(true)`
+err := mycache.Once(ctx, key, cache.Value(obj), cache.Refresh(true), cache.Do(func(ctx context.Context) (any, error) {
+    return mockDBGetObject(1)
+}))
+```
+
+#### MGet Batch Query
+`MGet` uses golang's Generics + Load function to provide a user-friendly way to batch query entities corresponding to IDs in multi-level cache. If the cache is redis or the last level of a multi-level cache is redis, Pipeline is used to implement read and write operations to improve performance. It is worth noting that for abnormal scenarios (IO exceptions, serialization exceptions, etc.), our design philosophy is to provide lossy services as much as possible to prevent penetration.
+```go
+mycache := cache.New[int, *object](cache.WithName("any"),
+       // ...
+       cache.WithRemoteExpiry(time.Minute),
+    )
+
+ctx := context.TODO()
+key := "mykey"
+ids := []int{1, 2, 3}
+
+ret := mycache.MGet(ctx, key, ids, func(ctx context.Context, ids []int) (map[int]*object, error) {
+    return mockDBMGetObject(ids)
+})
 ```
