@@ -110,7 +110,7 @@ func Example_mGetUsage() {
 	)
 
 	ctx := context.TODO()
-	key := "mykey"
+	key := "mget"
 	ids := []int{1, 2, 3}
 
 	ret := mycache.MGet(ctx, key, ids, func(ctx context.Context, ids []int) (map[int]*object, error) {
