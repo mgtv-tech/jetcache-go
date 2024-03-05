@@ -256,3 +256,10 @@ ret := mycache.MGet(ctx, key, ids, func(ctx context.Context, ids []int) (map[int
     return mockDBMGetObject(ids)
 })
 ```
+
+### Codec Selection
+`jetcache-go` implements three serialization and deserialization (codec) methods by default: [sonic](https://github.com/bytedance/sonic)、[MsgPack](https://github.com/vmihailenco/msgpack), and native json.
+
+**Selection Guide:**
+- **For high performance:** If the local cache hit rate is extremely high, but the deserialization operation of converting byte arrays to objects in the local cache consumes a lot of CPU, choose sonic.
+- **For balance between performance and storage space:** Choose MsgPack. MsgPack uses MsgPack for serialization and deserialization, and snappy compression is used when the content exceeds 64 bytes.

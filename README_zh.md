@@ -253,3 +253,11 @@ ret := mycache.MGet(ctx, key, ids, func(ctx context.Context, ids []int) (map[int
 return mockDBMGetObject(ids)
 })
 ```
+
+#### Codec编解码选择
+`jetcache-go`默认实现了三种编解码方式，[sonic](https://github.com/bytedance/sonic)、[MsgPack](https://github.com/vmihailenco/msgpack)和原生`json`。
+
+**选择指导：**
+
+- **追求编解码性能：** 例如本地缓存命中率极高，但本地缓存byte数组转对象的反序列化操作非常耗CPU，那么选择`sonic`。
+- **兼顾性能和极致的存储空间：** 选择`MsgPack`，MsgPack采用MsgPack编解码，内容>64个字节，会采用`snappy`压缩。
