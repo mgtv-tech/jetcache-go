@@ -1,9 +1,11 @@
 package cache_test
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
+	"testing"
 	"time"
 
 	"github.com/go-redis/redis/v8"
@@ -28,6 +30,17 @@ func mockDBGetObject(id int) (*object, error) {
 	return &object{Str: "mystring", Num: 42}, nil
 }
 
+func mockDBMGetObject(ids []int) (map[int]*object, error) {
+	ret := make(map[int]*object)
+	for _, id := range ids {
+		if id == 3 {
+			continue
+		}
+		ret[id] = &object{Str: "mystring", Num: id}
+	}
+	return ret, nil
+}
+
 func Example_basicUsage() {
 	ring := redis.NewRing(&redis.RingOptions{
 		Addrs: map[string]string{
@@ -35,7 +48,7 @@ func Example_basicUsage() {
 		},
 	})
 
-	mycache := cache.New(cache.WithName("any"),
+	mycache := cache.New[string, any](cache.WithName("any"),
 		cache.WithRemote(remote.NewGoRedisV8Adaptor(ring)),
 		cache.WithLocal(local.NewFreeCache(256*local.MB, time.Minute)),
 		cache.WithErrNotFound(errRecordNotFound))
@@ -63,7 +76,7 @@ func Example_advancedUsage() {
 		},
 	})
 
-	mycache := cache.New(cache.WithName("any"),
+	mycache := cache.New[string, any](cache.WithName("any"),
 		cache.WithRemote(remote.NewGoRedisV8Adaptor(ring)),
 		cache.WithLocal(local.NewFreeCache(256*local.MB, time.Minute)),
 		cache.WithErrNotFound(errRecordNotFound),
@@ -72,13 +85,45 @@ func Example_advancedUsage() {
 	ctx := context.TODO()
 	key := util.JoinAny(":", "mykey", 1)
 	obj := new(object)
-	if err := mycache.Once(ctx, key, cache.Value(obj), cache.Refresh(true), cache.Do(func(ctx context.Context) (interface{}, error) {
+	if err := mycache.Once(ctx, key, cache.Value(obj), cache.Refresh(true), cache.Do(func(ctx context.Context) (any, error) {
 		return mockDBGetObject(1)
 	})); err != nil {
 		panic(err)
 	}
 	fmt.Println(obj)
 	//Output: &{mystring 42}
+
+	mycache.Close()
+}
+
+func Test_Example_MGet(t *testing.T) {
+	ring := redis.NewRing(&redis.RingOptions{
+		Addrs: map[string]string{
+			"localhost": ":6379",
+		},
+	})
+
+	mycache := cache.New[int, *object](cache.WithName("any"),
+		cache.WithRemote(remote.NewGoRedisV8Adaptor(ring)),
+		cache.WithLocal(local.NewFreeCache(256*local.MB, time.Minute)),
+		cache.WithErrNotFound(errRecordNotFound),
+		cache.WithRemoteExpiry(time.Minute),
+	)
+
+	ctx := context.TODO()
+	key := "mykey"
+	ids := []int{1, 2, 3}
+
+	ret := mycache.MGet(ctx, key, ids, func(ctx context.Context, ids []int) (map[int]*object, error) {
+		return mockDBMGetObject(ids)
+	})
+
+	var b bytes.Buffer
+	for _, id := range ids {
+		b.WriteString(fmt.Sprintf("%v", ret[id]))
+	}
+	fmt.Println(b.String())
+	//Output: &{mystring 1}&{mystring 2}<nil>
 
 	mycache.Close()
 }
