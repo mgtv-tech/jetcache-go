@@ -7,18 +7,16 @@ import (
 	"github.com/daoshenzzg/jetcache-go/logger"
 )
 
-const defaultTTL = time.Hour
-
 type (
 	// ItemOption defines the method to customize an Options.
 	ItemOption func(o *item)
 	// DoFunc returns getValue to be cached.
-	DoFunc func(ctx context.Context) (interface{}, error)
+	DoFunc func(ctx context.Context) (any, error)
 
 	item struct {
 		ctx       context.Context
 		key       string
-		value     interface{}   // value gets the value for the given key and fills into value.
+		value     any           // value gets the value for the given key and fills into value.
 		ttl       time.Duration // ttl is the remote cache expiration time. Default ttl is 1 hour.
 		do        DoFunc        // do is DoFunc
 		setXX     bool          // setXX only sets the key if it already exists.
@@ -47,7 +45,7 @@ func newItemOptions(ctx context.Context, key string, opts ...ItemOption) *item {
 	return &item
 }
 
-func Value(value interface{}) ItemOption {
+func Value(value any) ItemOption {
 	return func(o *item) {
 		o.value = value
 	}
@@ -96,7 +94,7 @@ func (item *item) Context() context.Context {
 	return item.ctx
 }
 
-func (item *item) getValue() (interface{}, error) {
+func (item *item) getValue() (any, error) {
 	if item.do != nil {
 		return item.do(item.Context())
 	}
@@ -106,7 +104,7 @@ func (item *item) getValue() (interface{}, error) {
 	return nil, nil
 }
 
-func (item *item) getTtl() time.Duration {
+func (item *item) getTtl(defaultTTL time.Duration) time.Duration {
 	if item.ttl < 0 {
 		return 0
 	}

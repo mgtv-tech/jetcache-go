@@ -13,7 +13,7 @@ func TestItemOptions(t *testing.T) {
 		o := newItemOptions(context.TODO(), "key")
 		assert.Nil(t, o.value)
 		assert.Nil(t, o.do)
-		assert.Equal(t, defaultTTL, o.getTtl())
+		assert.Equal(t, defaultRemoteExpiry, o.getTtl(defaultRemoteExpiry))
 		assert.False(t, o.setXX)
 		assert.False(t, o.setNX)
 		assert.False(t, o.skipLocal)
@@ -28,12 +28,12 @@ func TestItemOptions(t *testing.T) {
 	t.Run("with item options", func(t *testing.T) {
 		o := newItemOptions(context.TODO(), "key", Value("getValue"),
 			TTL(time.Minute), SetXX(true), SetNX(true), SkipLocal(true),
-			Refresh(true), Do(func(context.Context) (interface{}, error) {
+			Refresh(true), Do(func(context.Context) (any, error) {
 				return "any", nil
 			}))
 		assert.Equal(t, "getValue", o.value)
 		assert.NotNil(t, o.do)
-		assert.Equal(t, time.Minute, o.getTtl())
+		assert.Equal(t, time.Minute, o.getTtl(defaultRemoteExpiry))
 		assert.True(t, o.setXX)
 		assert.True(t, o.setNX)
 		assert.True(t, o.skipLocal)
@@ -52,7 +52,7 @@ func TestItemTTL(t *testing.T) {
 		},
 		{
 			input:  time.Millisecond,
-			expect: defaultTTL,
+			expect: defaultRemoteExpiry,
 		},
 		{
 			input:  time.Minute,
@@ -62,6 +62,6 @@ func TestItemTTL(t *testing.T) {
 
 	for _, v := range tests {
 		item := &item{ttl: v.input}
-		assert.Equal(t, v.expect, item.getTtl())
+		assert.Equal(t, v.expect, item.getTtl(defaultRemoteExpiry))
 	}
 }
