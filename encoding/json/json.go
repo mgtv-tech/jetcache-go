@@ -16,11 +16,11 @@ func init() {
 // codec is a Codec implementation with json.
 type codec struct{}
 
-func (codec) Marshal(v interface{}) ([]byte, error) {
+func (codec) Marshal(v any) ([]byte, error) {
 	return json.Marshal(v)
 }
 
-func (codec) Unmarshal(data []byte, v interface{}) error {
+func (codec) Unmarshal(data []byte, v any) error {
 	return json.Unmarshal(data, v)
 }
 
