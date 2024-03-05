@@ -21,7 +21,7 @@ Translate to: [简体中文](README_zh.md)
 - ✅ Supports asynchronous refreshing of distributed caches.
 - ✅ Metrics collection: By default, it prints statistical metrics (QPM, Hit, Miss, Query, QueryFail) through logs.
 - ✅ Automatic degradation of distributed cache query failures.
-- ✅ The `MGet` interface supports the `load`function. In a distributed caching scenario, the Pipeline mode is used to improve performance.
+- ✅ The `MGet` interface supports the `Load` function. In a distributed caching scenario, the Pipeline mode is used to improve performance.
 
 # Installation
 To start using the latest version of jetcache-go, you can import the library into your project:

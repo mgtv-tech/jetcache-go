@@ -20,7 +20,7 @@ Translations: [English](README.md) | [简体中文](README_zh.md)
 - ✅ 支持开启分布式缓存异步刷新
 - ✅ 指标采集，默认实现了通过日志打印各级缓存的统计指标（QPM、Hit、Miss、Query、QueryFail）
 - ✅ 分布式缓存查询故障自动降级
-- ✅ `MGet`接口支持`load`函数。带分布缓存场景，采用`Pipeline`模式实现
+- ✅ `MGet`接口支持`Load`函数。带分布缓存场景，采用`Pipeline`模式实现
 
 # 安装
 使用最新版本的jetcache-go，您可以在项目中导入该库：
