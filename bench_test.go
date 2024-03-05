@@ -41,7 +41,7 @@ func BenchmarkOnceWithTinyLFU(b *testing.B) {
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
 			var dst object
-			err := cache.Once(context.TODO(), "bench-once", Value(&dst), Do(func(context.Context) (interface{}, error) {
+			err := cache.Once(context.TODO(), "bench-once", Value(&dst), Do(func(context.Context) (any, error) {
 				return obj, nil
 			}))
 			if err != nil {
@@ -89,7 +89,7 @@ func BenchmarkOnceWithFreeCache(b *testing.B) {
 		for pb.Next() {
 			var dst object
 			err := cache.Once(context.TODO(), "bench-once", Value(&dst),
-				Do(func(context.Context) (interface{}, error) {
+				Do(func(context.Context) (any, error) {
 					return obj, nil
 				}))
 			if err != nil {
@@ -123,7 +123,7 @@ func BenchmarkSetWithFreeCache(b *testing.B) {
 }
 
 var (
-	asyncCache Cache
+	asyncCache Cache[int, *object]
 	newOnce    sync.Once
 )
 
@@ -140,7 +140,7 @@ func BenchmarkOnceWithStats(b *testing.B) {
 		for pb.Next() {
 			var dst object
 			err := cache.Once(context.TODO(), "bench-once_"+strconv.Itoa(rand.Intn(256)),
-				Value(&dst), Do(func(context.Context) (interface{}, error) {
+				Value(&dst), Do(func(context.Context) (any, error) {
 					time.Sleep(50 * time.Millisecond)
 					return obj, nil
 				}))
@@ -168,7 +168,7 @@ func BenchmarkOnceRefreshWithStats(b *testing.B) {
 		for pb.Next() {
 			var dst object
 			err := cache.Once(context.TODO(), "bench-refresh_"+strconv.Itoa(rand.Intn(256)),
-				Value(&dst), Do(func(context.Context) (interface{}, error) {
+				Value(&dst), Do(func(context.Context) (any, error) {
 					time.Sleep(50 * time.Millisecond)
 					return obj, nil
 				}),
@@ -183,12 +183,39 @@ func BenchmarkOnceRefreshWithStats(b *testing.B) {
 	})
 }
 
-func newRefreshBoth() Cache {
+func BenchmarkMGetWithStats(b *testing.B) {
+	logger.SetLevel(logger.LevelInfo)
+	cache := newRefreshBoth()
+	ids := []int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}
+
+	b.ReportAllocs()
+	b.ResetTimer()
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			cache.MGet(context.TODO(), "key", ids, func(ctx context.Context, ids []int) (map[int]*object, error) {
+				return mockDBMGetObject(ids)
+			})
+		}
+	})
+}
+
+func mockDBMGetObject(ids []int) (map[int]*object, error) {
+	ret := make(map[int]*object)
+	for _, id := range ids {
+		if id == 3 {
+			continue
+		}
+		ret[id] = &object{Str: "mystring", Num: id}
+	}
+	return ret, nil
+}
+
+func newRefreshBoth() Cache[int, *object] {
 	tInit()
 
 	newOnce.Do(func() {
 		name := "bench"
-		asyncCache = New(WithName(name),
+		asyncCache = New[int, *object](WithName(name),
 			WithRemote(remote.NewGoRedisV8Adaptor(rdb)),
 			WithLocal(local.NewFreeCache(256*local.MB, 3*time.Second)),
 			WithErrNotFound(errTestNotFound),
