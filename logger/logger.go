@@ -1,11 +1,11 @@
 package logger
 
-// Logger is a logger interface that provides logging function with levels.
+// Logger is a logger anyhat provides logging function with levels.
 type Logger interface {
-	Debug(format string, v ...interface{})
-	Info(format string, v ...interface{})
-	Warn(format string, v ...interface{})
-	Error(format string, v ...interface{})
+	Debug(format string, v ...any)
+	Info(format string, v ...any)
+	Warn(format string, v ...any)
+	Error(format string, v ...any)
 }
 
 // Level defines the priority of a log message.
@@ -31,7 +31,7 @@ func SetLevel(lv Level) {
 }
 
 // Error calls the default logger's Error method.
-func Error(format string, v ...interface{}) {
+func Error(format string, v ...any) {
 	if level > LevelError {
 		return
 	}
@@ -39,7 +39,7 @@ func Error(format string, v ...interface{}) {
 }
 
 // Warn calls the default logger's Warn method.
-func Warn(format string, v ...interface{}) {
+func Warn(format string, v ...any) {
 	if level > LevelWarn {
 		return
 	}
@@ -47,7 +47,7 @@ func Warn(format string, v ...interface{}) {
 }
 
 // Info calls the default logger's Info method.
-func Info(format string, v ...interface{}) {
+func Info(format string, v ...any) {
 	if level > LevelInfo {
 		return
 	}
@@ -55,7 +55,7 @@ func Info(format string, v ...interface{}) {
 }
 
 // Debug calls the default logger's Debug method.
-func Debug(format string, v ...interface{}) {
+func Debug(format string, v ...any) {
 	if level > LevelDebug {
 		return
 	}
