@@ -14,6 +14,7 @@ func TestCacheOptions(t *testing.T) {
 	t.Run("default options", func(t *testing.T) {
 		o := newOptions()
 		assert.Equal(t, defaultName, o.name)
+		assert.Equal(t, defaultRemoteExpiry, o.remoteExpiry)
 		assert.Equal(t, defaultNotFoundExpiry, o.notFoundExpiry)
 		assert.Equal(t, defaultNotFoundExpiry/10, o.offset)
 		assert.Equal(t, defaultRefreshConcurrency, o.refreshConcurrency)
@@ -27,6 +28,11 @@ func TestCacheOptions(t *testing.T) {
 		assert.Equal(t, defaultNotFoundExpiry/10, o.offset)
 		assert.Equal(t, defaultRefreshConcurrency, o.refreshConcurrency)
 		assert.Equal(t, defaultCodec, o.codec)
+	})
+
+	t.Run("with remote expiry", func(t *testing.T) {
+		o := newOptions(WithRemoteExpiry(time.Second))
+		assert.Equal(t, time.Second, o.remoteExpiry)
 	})
 
 	t.Run("with not found expiry", func(t *testing.T) {
@@ -53,7 +59,7 @@ func TestCacheOptions(t *testing.T) {
 		assert.Equal(t, defaultCodec, o.codec)
 	})
 
-	t.Run("with codec", func(t *testing.T) {
+	t.Run("with mockCodec", func(t *testing.T) {
 		o := newOptions(WithCodec(json.Name))
 		assert.Equal(t, defaultNotFoundExpiry, o.notFoundExpiry)
 		assert.Equal(t, defaultRefreshConcurrency, o.refreshConcurrency)

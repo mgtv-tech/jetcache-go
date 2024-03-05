@@ -3,7 +3,7 @@ package cache
 import (
 	"time"
 
-	"github.com/daoshenzzg/jetcache-go/encoding/msgpack"
+	"github.com/daoshenzzg/jetcache-go/encoding/sonic"
 	"github.com/daoshenzzg/jetcache-go/local"
 	"github.com/daoshenzzg/jetcache-go/remote"
 	"github.com/daoshenzzg/jetcache-go/stats"
@@ -12,8 +12,9 @@ import (
 const (
 	defaultName               = "default"
 	defaultRefreshConcurrency = 4
+	defaultRemoteExpiry       = time.Hour
 	defaultNotFoundExpiry     = time.Minute
-	defaultCodec              = msgpack.Name
+	defaultCodec              = sonic.Name
 	maxOffset                 = 10 * time.Second
 )
 
@@ -23,8 +24,9 @@ type (
 		name                       string        // Cache name, used for log identification and metric reporting
 		remote                     remote.Remote // Remote is distributed cache, such as Redis.
 		local                      local.Local   // Local is memory cache, such as FreeCache.
-		codec                      string        // Value encoding and decoding method. Default is "msgpack.Name". You can also customize it.
+		codec                      string        // Value encoding and decoding method. Default is "sonic.Name". You can also customize it.
 		errNotFound                error         // Error to return for cache miss. Used to prevent cache penetration.
+		remoteExpiry               time.Duration // Remote cache ttl, Default is 1 hour.
 		notFoundExpiry             time.Duration // Duration for placeholder cache when there is a cache miss. Default is 1 minute.
 		offset                     time.Duration // Expiration time jitter factor for cache misses.
 		refreshDuration            time.Duration // Interval for asynchronous cache refresh. Default is 0 (refresh is disabled).
@@ -48,6 +50,9 @@ func newOptions(opts ...Option) Options {
 	}
 	if o.codec == "" {
 		o.codec = defaultCodec
+	}
+	if o.remoteExpiry <= 0 {
+		o.remoteExpiry = defaultRemoteExpiry
 	}
 	if o.notFoundExpiry <= 0 {
 		o.notFoundExpiry = defaultNotFoundExpiry
@@ -98,6 +103,12 @@ func WithCodec(codec string) Option {
 func WithErrNotFound(err error) Option {
 	return func(o *Options) {
 		o.errNotFound = err
+	}
+}
+
+func WithRemoteExpiry(remoteExpiry time.Duration) Option {
+	return func(o *Options) {
+		o.remoteExpiry = remoteExpiry
 	}
 }
 
