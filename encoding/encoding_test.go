@@ -9,11 +9,11 @@ import (
 
 type codec struct{}
 
-func (c codec) Marshal(v interface{}) ([]byte, error) {
+func (c codec) Marshal(v any) ([]byte, error) {
 	panic("implement me")
 }
 
-func (c codec) Unmarshal(data []byte, v interface{}) error {
+func (c codec) Unmarshal(data []byte, v any) error {
 	panic("implement me")
 }
 
@@ -24,11 +24,11 @@ func (c codec) Name() string {
 // codec2 is a Codec implementation with xml.
 type codec2 struct{}
 
-func (codec2) Marshal(v interface{}) ([]byte, error) {
+func (codec2) Marshal(v any) ([]byte, error) {
 	return xml.Marshal(v)
 }
 
-func (codec2) Unmarshal(data []byte, v interface{}) error {
+func (codec2) Unmarshal(data []byte, v any) error {
 	return xml.Unmarshal(data, v)
 }
 
@@ -68,9 +68,9 @@ func TestRegisterCodec(t *testing.T) {
 type PanicTestFunc func()
 
 // didPanic returns true if the function passed to it panics. Otherwise, it returns false.
-func didPanic(f PanicTestFunc) (bool, interface{}, string) {
+func didPanic(f PanicTestFunc) (bool, any, string) {
 	didPanic := false
-	var message interface{}
+	var message any
 	var stack string
 	func() {
 		defer func() {

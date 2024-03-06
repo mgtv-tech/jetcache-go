@@ -1,10 +1,11 @@
-package json
+package sonic
 
 import (
-	"encoding/json"
 	"reflect"
 	"strings"
 	"testing"
+
+	"github.com/bytedance/sonic"
 )
 
 type testEmbed struct {
@@ -32,7 +33,7 @@ const (
 
 func (a *mock) UnmarshalJSON(b []byte) error {
 	var s string
-	if err := json.Unmarshal(b, &s); err != nil {
+	if err := sonic.Unmarshal(b, &s); err != nil {
 		return err
 	}
 	switch strings.ToLower(s) {
@@ -58,12 +59,12 @@ func (a *mock) MarshalJSON() ([]byte, error) {
 		s = "zebra"
 	}
 
-	return json.Marshal(s)
+	return sonic.Marshal(s)
 }
 
 func TestJSONMarshal(t *testing.T) {
 	tests := []struct {
-		input  any
+		input  interface{}
 		expect string
 	}{
 		{
@@ -99,7 +100,7 @@ func TestJSONUnmarshal(t *testing.T) {
 	p4 := &mock{}
 	tests := []struct {
 		input  string
-		expect any
+		expect interface{}
 	}{
 		{
 			input:  `{"a":"","b":"","c":""}`,

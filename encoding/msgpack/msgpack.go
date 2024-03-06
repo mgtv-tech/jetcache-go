@@ -27,7 +27,7 @@ func init() {
 // codec is a Codec implementation with json.
 type codec struct{}
 
-func (codec) Marshal(v interface{}) ([]byte, error) {
+func (codec) Marshal(v any) ([]byte, error) {
 	b, err := msgpack.Marshal(v)
 	if err != nil {
 		return nil, err
@@ -36,7 +36,7 @@ func (codec) Marshal(v interface{}) ([]byte, error) {
 	return compress(b), nil
 }
 
-func (codec) Unmarshal(data []byte, v interface{}) error {
+func (codec) Unmarshal(data []byte, v any) error {
 	switch c := data[len(data)-1]; c {
 	case noCompression:
 		data = data[:len(data)-1]

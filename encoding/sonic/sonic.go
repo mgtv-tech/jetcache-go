@@ -1,13 +1,12 @@
-package json
+package sonic
 
 import (
-	"encoding/json"
-
+	"github.com/bytedance/sonic"
 	"github.com/daoshenzzg/jetcache-go/encoding"
 )
 
 // Name is the name registered for the json codec.
-const Name = "json"
+const Name = "sonic"
 
 func init() {
 	encoding.RegisterCodec(codec{})
@@ -16,12 +15,12 @@ func init() {
 // codec is a Codec implementation with json.
 type codec struct{}
 
-func (codec) Marshal(v any) ([]byte, error) {
-	return json.Marshal(v)
+func (codec) Marshal(v interface{}) ([]byte, error) {
+	return sonic.Marshal(v)
 }
 
-func (codec) Unmarshal(data []byte, v any) error {
-	return json.Unmarshal(data, v)
+func (codec) Unmarshal(data []byte, v interface{}) error {
+	return sonic.Unmarshal(data, v)
 }
 
 func (codec) Name() string {

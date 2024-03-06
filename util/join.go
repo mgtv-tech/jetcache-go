@@ -7,12 +7,12 @@ import (
 )
 
 var bfPool = sync.Pool{
-	New: func() interface{} {
+	New: func() any {
 		return bytes.NewBuffer([]byte{})
 	},
 }
 
-func JoinAny(sep string, elems ...interface{}) string {
+func JoinAny(sep string, elems ...any) string {
 	if len(elems) == 0 {
 		return ""
 	}
