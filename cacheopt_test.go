@@ -59,7 +59,7 @@ func TestCacheOptions(t *testing.T) {
 		assert.Equal(t, defaultCodec, o.codec)
 	})
 
-	t.Run("with mockCodec", func(t *testing.T) {
+	t.Run("with mockDecode", func(t *testing.T) {
 		o := newOptions(WithCodec(json.Name))
 		assert.Equal(t, defaultNotFoundExpiry, o.notFoundExpiry)
 		assert.Equal(t, defaultRefreshConcurrency, o.refreshConcurrency)

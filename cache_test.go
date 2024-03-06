@@ -2,6 +2,7 @@ package cache
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strconv"
@@ -245,12 +246,12 @@ var _ = Describe("Cache", func() {
 				Expect(ret).To(BeEmpty())
 			})
 
-			It("with skip elements that fail to codec", func() {
+			It("with skip elements that unmarshal error", func() {
 				if cache.CacheType() == TypeRemote {
 					codecErrCache := New[int, *object](WithName("codecErr"),
 						WithRemote(remote.NewGoRedisV8Adaptor(rdb)),
-						WithCodec(mockErr))
-					err := rdb.SetEX(context.Background(), "key:1", "value1", time.Minute).Err()
+						WithCodec(mockUnmarshalErr))
+					err := codecErrCache.Set(context.Background(), "key:1", Value("value1"))
 					Expect(err).NotTo(HaveOccurred())
 
 					ids := []int{1, 2}
@@ -262,11 +263,46 @@ var _ = Describe("Cache", func() {
 					local := localNew(freeCache)
 					codecErrCache := New[int, *object](WithName("codecErr"),
 						WithLocal(local),
-						WithCodec(mockErr))
+						WithCodec(mockUnmarshalErr))
 					local.Set("key:1", []byte("value1"))
 
 					ids := []int{1, 2}
 					ret := codecErrCache.MGet(context.Background(), "key", ids, nil)
+					Expect(ret).To(Equal(map[int]*object{}))
+				}
+			})
+
+			It("with skip elements that marshal error", func() {
+				if cache.CacheType() == TypeRemote {
+					codecErrCache := New[int, *object](WithName("codecErr"),
+						WithRemote(remote.NewGoRedisV8Adaptor(rdb)),
+						WithCodec(mockMarshalErr))
+					ids := []int{1, 2}
+					// 1st marshal error, but return origin load func data
+					ret := codecErrCache.MGet(context.Background(), "key", ids,
+						func(ctx context.Context, ids []int) (map[int]*object, error) {
+							return map[int]*object{1: {Str: "str1", Num: 1}, 2: {Str: "str2", Num: 2}}, nil
+						})
+					Expect(ret).To(Equal(map[int]*object{1: {Str: "str1", Num: 1}, 2: {Str: "str2", Num: 2}}))
+					// 2nd cache hit placeholder "*", then return miss
+					ret = codecErrCache.MGet(context.Background(), "key", ids, nil)
+					Expect(ret).To(Equal(map[int]*object{}))
+				}
+
+				if cache.CacheType() == TypeLocal {
+					local := localNew(freeCache)
+					codecErrCache := New[int, *object](WithName("codecErr"),
+						WithLocal(local),
+						WithCodec(mockMarshalErr))
+					ids := []int{1, 2}
+					// 1st marshal error, but return origin load func data
+					ret := codecErrCache.MGet(context.Background(), "key", ids,
+						func(ctx context.Context, ids []int) (map[int]*object, error) {
+							return map[int]*object{1: {Str: "str1", Num: 1}, 2: {Str: "str2", Num: 2}}, nil
+						})
+					Expect(ret).To(Equal(map[int]*object{1: {Str: "str1", Num: 1}, 2: {Str: "str2", Num: 2}}))
+					// 2nd cache hit placeholder "*", then return miss
+					ret = codecErrCache.MGet(context.Background(), "key", ids, nil)
 					Expect(ret).To(Equal(map[int]*object{}))
 				}
 			})
@@ -655,24 +691,41 @@ func localNew(localType localType) local.Local {
 	}
 }
 
-// mockErr is the name registered for the json mockCodec.
-const mockErr = "err"
+const (
+	mockUnmarshalErr = "err1"
+	mockMarshalErr   = "err2"
+)
 
 func init() {
-	encoding.RegisterCodec(mockCodec{})
+	encoding.RegisterCodec(mockDecode{})
+	encoding.RegisterCodec(mockEncode{})
 }
 
-// mockCodec is a Codec implementation with json.
-type mockCodec struct{}
+type (
+	mockDecode struct{}
+	mockEncode struct{}
+)
 
-func (mockCodec) Marshal(v interface{}) ([]byte, error) {
-	return nil, errors.New("mock Marshal error")
+func (mockDecode) Marshal(v interface{}) ([]byte, error) {
+	return json.Marshal(v)
 }
 
-func (mockCodec) Unmarshal(data []byte, v interface{}) error {
+func (mockDecode) Unmarshal(data []byte, v interface{}) error {
 	return errors.New("mock Unmarshal error")
 }
 
-func (mockCodec) Name() string {
-	return mockErr
+func (mockDecode) Name() string {
+	return mockUnmarshalErr
+}
+
+func (mockEncode) Marshal(v interface{}) ([]byte, error) {
+	return nil, errors.New("mock Marshal error")
+}
+
+func (mockEncode) Unmarshal(data []byte, v interface{}) error {
+	return json.Unmarshal(data, v)
+}
+
+func (mockEncode) Name() string {
+	return mockMarshalErr
 }
