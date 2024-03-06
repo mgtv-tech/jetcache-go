@@ -313,8 +313,8 @@ func (c *jetCache[K, V]) MGet(ctx context.Context, key string, ids []K, fn func(
 			c.statsHandler.IncrQueryFail(err)
 			logger.Error("MGet#fn(%s) error(%v)", util.JoinAny(",", ids), err)
 		} else {
-			placeholderValues := make(map[string]any)
-			cacheValues := make(map[string]any)
+			placeholderValues := make(map[string]any, len(ids))
+			cacheValues := make(map[string]any, len(ids))
 			for rk, rv := range fnValues {
 				values[rk] = rv
 				cacheKey := util.JoinAny(":", key, rk)
@@ -365,8 +365,8 @@ func (c *jetCache[K, V]) MGet(ctx context.Context, key string, ids []K, fn func(
 }
 
 func (c *jetCache[K, V]) mGetCache(ctx context.Context, key string, ids []K) (v map[K]V, missIds []K) {
-	v = make(map[K]V)
-	miss := make(map[string]K)
+	v = make(map[K]V, len(ids))
+	miss := make(map[string]K, len(ids))
 
 	for _, id := range ids {
 		cacheKey := util.JoinAny(":", key, id)
@@ -393,7 +393,7 @@ func (c *jetCache[K, V]) mGetCache(ctx context.Context, key string, ids []K) (v 
 	}
 
 	if len(miss) > 0 && c.remote != nil {
-		missKeys := make([]string, 0)
+		missKeys := make([]string, 0, len(miss))
 		for k := range miss {
 			missKeys = append(missKeys, k)
 		}

@@ -46,7 +46,7 @@ func (r *GoRedisV8Adaptor) Del(ctx context.Context, key string) (val int64, err 
 func (r *GoRedisV8Adaptor) MGet(ctx context.Context, keys ...string) (map[string]any, error) {
 	pipeline := r.client.Pipeline()
 	keyIdxMap := make(map[int]string, len(keys))
-	ret := make(map[string]any)
+	ret := make(map[string]any, len(keys))
 
 	for idx, key := range keys {
 		keyIdxMap[idx] = key
