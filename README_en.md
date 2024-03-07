@@ -14,7 +14,7 @@ Translate to: [简体中文](README.md)
 
 - ✅ Flexible combination of two-level caching: You can use memory, Redis, or your own custom storage method.
 - ✅ The `Once` interface adopts the `singleflight` pattern, which is highly concurrent and thread-safe.
-- ✅ By default, [sonic](https://github.com/bytedance/sonic) is used for encoding and decoding values. Optional [MsgPack](https://github.com/vmihailenco/msgpack) and native json.
+- ✅ By default, [MsgPack](https://github.com/vmihailenco/msgpack) is used for encoding and decoding values. Optional [sonic](https://github.com/bytedance/sonic) and native json.
 - ✅ The default local cache implementation includes [TinyLFU](https://github.com/dgryski/go-tinylfu) and [FreeCache](https://github.com/coocood/freecache).
 - ✅ The default distributed cache implementation is based on [go-redis/v8](https://github.com/redis/go-redis), and you can also customize your own implementation.
 - ✅ You can customize the errNotFound error and use placeholders to prevent cache penetration by caching empty results.
@@ -82,7 +82,7 @@ func Example_basicUsage() {
 		},
 	})
 
-	mycache := cache.New[string, any](cache.WithName("any"),
+	mycache := cache.New(cache.WithName("any"),
 		cache.WithRemote(remote.NewGoRedisV8Adaptor(ring)),
 		cache.WithLocal(local.NewFreeCache(256*local.MB, time.Minute)),
 		cache.WithErrNotFound(errRecordNotFound))
@@ -110,7 +110,7 @@ func Example_advancedUsage() {
 		},
 	})
 
-	mycache := cache.New[string, any](cache.WithName("any"),
+	mycache := cache.New(cache.WithName("any"),
 		cache.WithRemote(remote.NewGoRedisV8Adaptor(ring)),
 		cache.WithLocal(local.NewFreeCache(256*local.MB, time.Minute)),
 		cache.WithErrNotFound(errRecordNotFound),
@@ -137,18 +137,19 @@ func Example_mGetUsage() {
 		},
 	})
 
-	mycache := cache.New[int, *object](cache.WithName("any"),
+	mycache := cache.New(cache.WithName("any"),
 		cache.WithRemote(remote.NewGoRedisV8Adaptor(ring)),
 		cache.WithLocal(local.NewFreeCache(256*local.MB, time.Minute)),
 		cache.WithErrNotFound(errRecordNotFound),
 		cache.WithRemoteExpiry(time.Minute),
 	)
+	cacheT := cache.NewT[int, *object](mycache)
 
 	ctx := context.TODO()
-	key := "mykey"
+	key := "mget"
 	ids := []int{1, 2, 3}
 
-	ret := mycache.MGet(ctx, key, ids, func(ctx context.Context, ids []int) (map[int]*object, error) {
+	ret := cacheT.MGet(ctx, key, ids, func(ctx context.Context, ids []int) (map[int]*object, error) {
 		return mockDBMGetObject(ids)
 	})
 
@@ -159,7 +160,7 @@ func Example_mGetUsage() {
 	fmt.Println(b.String())
 	//Output: &{mystring 1}&{mystring 2}<nil>
 
-	mycache.Close()
+	cacheT.Close()
 }
 ```
 
@@ -226,7 +227,7 @@ mycache := cache.New("any",
 #### Automatic Cache Refresh
 `jetcache-go` provides automatic cache refresh capability to prevent cache avalanche and database overload when cache misses occur. It is suitable for scenarios with a small number of keys, low real-time requirements, and high loading overhead. The code above specifies a refresh every minute, and stops refreshing after 1 hour without access. If the cache is Redis or the last level of a multi-level cache is Redis, the cache loading behavior is globally unique, which means that only one server is refreshing at a time regardless of the number of servers, to reduce the load on the backend.
 ```go
-mycache := cache.New[string, any](cache.WithName("any"),
+mycache := cache.New(cache.WithName("any"),
        // ...
        // cache.WithRefreshDuration sets the asynchronous refresh interval
        cache.WithRefreshDuration(time.Minute),
@@ -242,10 +243,11 @@ err := mycache.Once(ctx, key, cache.Value(obj), cache.Refresh(true), cache.Do(fu
 #### MGet Batch Query
 `MGet` utilizes `golang generics` and the Load function to provide a user-friendly way to batch query entities corresponding to IDs in a multi-level cache. If the cache is Redis or the last level of a multi-level cache is Redis, `Pipeline` is used to implement read and write operations to improve performance. It's worth noting that for abnormal scenarios (IO exceptions, serialization exceptions, etc.), our design philosophy is to provide lossy services as much as possible to prevent cache penetration.
 ```go
-mycache := cache.New[int, *object](cache.WithName("any"),
+mycache := cache.New(cache.WithName("any"),
        // ...
        cache.WithRemoteExpiry(time.Minute),
     )
+cacheT := cache.NewT[int, *object](mycache)
 
 ctx := context.TODO()
 key := "mykey"
