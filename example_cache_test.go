@@ -47,7 +47,7 @@ func Example_basicUsage() {
 		},
 	})
 
-	mycache := cache.New[string, any](cache.WithName("any"),
+	mycache := cache.New(cache.WithName("any"),
 		cache.WithRemote(remote.NewGoRedisV8Adaptor(ring)),
 		cache.WithLocal(local.NewFreeCache(256*local.MB, time.Minute)),
 		cache.WithErrNotFound(errRecordNotFound))
@@ -75,7 +75,7 @@ func Example_advancedUsage() {
 		},
 	})
 
-	mycache := cache.New[string, any](cache.WithName("any"),
+	mycache := cache.New(cache.WithName("any"),
 		cache.WithRemote(remote.NewGoRedisV8Adaptor(ring)),
 		cache.WithLocal(local.NewFreeCache(256*local.MB, time.Minute)),
 		cache.WithErrNotFound(errRecordNotFound),
@@ -102,18 +102,19 @@ func Example_mGetUsage() {
 		},
 	})
 
-	mycache := cache.New[int, *object](cache.WithName("any"),
+	mycache := cache.New(cache.WithName("any"),
 		cache.WithRemote(remote.NewGoRedisV8Adaptor(ring)),
 		cache.WithLocal(local.NewFreeCache(256*local.MB, time.Minute)),
 		cache.WithErrNotFound(errRecordNotFound),
 		cache.WithRemoteExpiry(time.Minute),
 	)
+	cacheT := cache.NewT[int, *object](mycache)
 
 	ctx := context.TODO()
 	key := "mget"
 	ids := []int{1, 2, 3}
 
-	ret := mycache.MGet(ctx, key, ids, func(ctx context.Context, ids []int) (map[int]*object, error) {
+	ret := cacheT.MGet(ctx, key, ids, func(ctx context.Context, ids []int) (map[int]*object, error) {
 		return mockDBMGetObject(ids)
 	})
 
@@ -124,5 +125,5 @@ func Example_mGetUsage() {
 	fmt.Println(b.String())
 	//Output: &{mystring 1}&{mystring 2}<nil>
 
-	mycache.Close()
+	cacheT.Close()
 }
