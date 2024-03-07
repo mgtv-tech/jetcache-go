@@ -71,14 +71,15 @@ var _ = Describe("Cache", func() {
 
 	const key = "mykey"
 	var (
-		obj   *object
-		rdb   *redis.Client
-		cache Cache[int, *object]
+		obj    *object
+		rdb    *redis.Client
+		cache  Cache
+		cacheT *T[int, *object]
 	)
 
 	testCache := func() {
 		It("Remote and Local both nil", func() {
-			nilCache := New[int, any]().(*jetCache[int, any])
+			nilCache := New().(*jetCache)
 
 			err := nilCache.Get(ctx, "key", nil)
 			Expect(err).To(Equal(ErrRemoteLocalBothNil))
@@ -211,13 +212,13 @@ var _ = Describe("Cache", func() {
 				Expect(cache.Exists(ctx, "key:2")).To(BeTrue())
 
 				ids := []int{1, 2}
-				ret := cache.MGet(context.Background(), "key", ids, nil)
+				ret := cacheT.MGet(context.Background(), "key", ids, nil)
 				Expect(ret).To(Equal(map[int]*object{1: {Str: "str1", Num: 1}, 2: {Str: "str2", Num: 2}}))
 			})
 
 			It("cache hit with fn", func() {
 				ids := []int{1, 2, 3}
-				ret := cache.MGet(context.Background(), "key", ids,
+				ret := cacheT.MGet(context.Background(), "key", ids,
 					func(ctx context.Context, ints []int) (map[int]*object, error) {
 						return map[int]*object{1: {Str: "str1", Num: 1}, 2: {Str: "str2", Num: 2}}, nil
 					})
@@ -230,7 +231,7 @@ var _ = Describe("Cache", func() {
 				Expect(cache.Exists(ctx, "key:1")).To(BeTrue())
 
 				ids := []int{1, 2}
-				ret := cache.MGet(context.Background(), "key", ids,
+				ret := cacheT.MGet(context.Background(), "key", ids,
 					func(ctx context.Context, ints []int) (map[int]*object, error) {
 						return nil, errors.New("any")
 					})
@@ -239,7 +240,7 @@ var _ = Describe("Cache", func() {
 
 			It("cache miss", func() {
 				ids := []int{1, 2}
-				ret := cache.MGet(context.Background(), "key", ids,
+				ret := cacheT.MGet(context.Background(), "key", ids,
 					func(ctx context.Context, ints []int) (map[int]*object, error) {
 						return nil, nil
 					})
@@ -248,61 +249,66 @@ var _ = Describe("Cache", func() {
 
 			It("with skip elements that unmarshal error", func() {
 				if cache.CacheType() == TypeRemote {
-					codecErrCache := New[int, *object](WithName("codecErr"),
+					codecErrCache := New(WithName("codecErr"),
 						WithRemote(remote.NewGoRedisV8Adaptor(rdb)),
 						WithCodec(mockUnmarshalErr))
+
 					err := codecErrCache.Set(context.Background(), "key:1", Value("value1"))
 					Expect(err).NotTo(HaveOccurred())
 
 					ids := []int{1, 2}
-					ret := codecErrCache.MGet(context.Background(), "key", ids, nil)
+					ret := cacheT.MGet(context.Background(), "key", ids, nil)
 					Expect(ret).To(Equal(map[int]*object{}))
 				}
 
 				if cache.CacheType() == TypeLocal {
 					local := localNew(freeCache)
-					codecErrCache := New[int, *object](WithName("codecErr"),
+					codecErrCache := New(WithName("codecErr"),
 						WithLocal(local),
 						WithCodec(mockUnmarshalErr))
+					cacheT := NewT[int, *object](codecErrCache)
+
 					local.Set("key:1", []byte("value1"))
 
 					ids := []int{1, 2}
-					ret := codecErrCache.MGet(context.Background(), "key", ids, nil)
+					ret := cacheT.MGet(context.Background(), "key", ids, nil)
 					Expect(ret).To(Equal(map[int]*object{}))
 				}
 			})
 
 			It("with skip elements that marshal error", func() {
 				if cache.CacheType() == TypeRemote {
-					codecErrCache := New[int, *object](WithName("codecErr"),
+					codecErrCache := New(WithName("codecErr"),
 						WithRemote(remote.NewGoRedisV8Adaptor(rdb)),
 						WithCodec(mockMarshalErr))
+					cacheT := NewT[int, *object](codecErrCache)
 					ids := []int{1, 2}
 					// 1st marshal error, but return origin load func data
-					ret := codecErrCache.MGet(context.Background(), "key", ids,
+					ret := cacheT.MGet(context.Background(), "key", ids,
 						func(ctx context.Context, ids []int) (map[int]*object, error) {
 							return map[int]*object{1: {Str: "str1", Num: 1}, 2: {Str: "str2", Num: 2}}, nil
 						})
 					Expect(ret).To(Equal(map[int]*object{1: {Str: "str1", Num: 1}, 2: {Str: "str2", Num: 2}}))
 					// 2nd cache hit placeholder "*", then return miss
-					ret = codecErrCache.MGet(context.Background(), "key", ids, nil)
+					ret = cacheT.MGet(context.Background(), "key", ids, nil)
 					Expect(ret).To(Equal(map[int]*object{}))
 				}
 
 				if cache.CacheType() == TypeLocal {
 					local := localNew(freeCache)
-					codecErrCache := New[int, *object](WithName("codecErr"),
+					codecErrCache := New(WithName("codecErr"),
 						WithLocal(local),
 						WithCodec(mockMarshalErr))
+					cacheT := NewT[int, *object](codecErrCache)
 					ids := []int{1, 2}
 					// 1st marshal error, but return origin load func data
-					ret := codecErrCache.MGet(context.Background(), "key", ids,
+					ret := cacheT.MGet(context.Background(), "key", ids,
 						func(ctx context.Context, ids []int) (map[int]*object, error) {
 							return map[int]*object{1: {Str: "str1", Num: 1}, 2: {Str: "str2", Num: 2}}, nil
 						})
 					Expect(ret).To(Equal(map[int]*object{1: {Str: "str1", Num: 1}, 2: {Str: "str2", Num: 2}}))
 					// 2nd cache hit placeholder "*", then return miss
-					ret = codecErrCache.MGet(context.Background(), "key", ids, nil)
+					ret = cacheT.MGet(context.Background(), "key", ids, nil)
 					Expect(ret).To(Equal(map[int]*object{}))
 				}
 			})
@@ -471,7 +477,7 @@ var _ = Describe("Cache", func() {
 					return
 				}
 				var (
-					jetCache = cache.(*jetCache[int, *object])
+					jetCache = cache.(*jetCache)
 					key      = util.JoinAny(":", cache.CacheType(), "K1")
 					value    string
 					err      error
@@ -498,7 +504,7 @@ var _ = Describe("Cache", func() {
 				}
 				var (
 					callCount int64
-					jetCache  = cache.(*jetCache[int, *object])
+					jetCache  = cache.(*jetCache)
 					key       = util.JoinAny(":", cache.CacheType(), "K1")
 					doFunc    = func(context.Context) (any, error) {
 						if atomic.AddInt64(&callCount, 1) == 1 {
@@ -534,7 +540,7 @@ var _ = Describe("Cache", func() {
 				}
 
 				var (
-					jetCache = cache.(*jetCache[int, *object])
+					jetCache = cache.(*jetCache)
 					key      = util.JoinAny(":", cache.CacheType(), "K1")
 					lockKey  = fmt.Sprintf("%s%s", key, lockKeySuffix)
 					doFunc   = func(context.Context) (any, error) {
@@ -568,7 +574,7 @@ var _ = Describe("Cache", func() {
 			})
 
 			It("test addOrUpdateRefreshTask", func() {
-				var jetCache = cache.(*jetCache[int, *object])
+				var jetCache = cache.(*jetCache)
 				Expect(jetCache.TaskSize()).To(Equal(0))
 
 				key := util.JoinAny(":", cache.CacheType(), "K1")
@@ -615,6 +621,7 @@ var _ = Describe("Cache", func() {
 		BeforeEach(func() {
 			rdb = newRdb()
 			cache = newRemote(rdb)
+			cacheT = NewT[int, *object](cache)
 		})
 
 		testCache()
@@ -630,6 +637,7 @@ var _ = Describe("Cache", func() {
 			BeforeEach(func() {
 				rdb = newRdb()
 				cache = newBoth(rdb, typ)
+				cacheT = NewT[int, *object](cache)
 			})
 
 			testCache()
@@ -639,6 +647,7 @@ var _ = Describe("Cache", func() {
 			BeforeEach(func() {
 				rdb = nil
 				cache = newLocal(typ)
+				cacheT = NewT[int, *object](cache)
 			})
 
 			testCache()
@@ -657,24 +666,24 @@ func newRdb() *redis.Client {
 	})
 }
 
-func newLocal(localType localType) Cache[int, *object] {
-	return New[int, *object](WithName("local"),
+func newLocal(localType localType) Cache {
+	return New(WithName("local"),
 		WithLocal(localNew(localType)),
 		WithErrNotFound(errTestNotFound),
 		WithRefreshDuration(refreshDuration),
 		WithStopRefreshAfterLastAccess(stopRefreshAfterLastAccess))
 }
 
-func newRemote(rds *redis.Client) Cache[int, *object] {
-	return New[int, *object](WithName("remote"),
+func newRemote(rds *redis.Client) Cache {
+	return New(WithName("remote"),
 		WithRemote(remote.NewGoRedisV8Adaptor(rds)),
 		WithErrNotFound(errTestNotFound),
 		WithRefreshDuration(refreshDuration),
 		WithStopRefreshAfterLastAccess(stopRefreshAfterLastAccess))
 }
 
-func newBoth(rds *redis.Client, localType localType) Cache[int, *object] {
-	return New[int, *object](WithName("both"),
+func newBoth(rds *redis.Client, localType localType) Cache {
+	return New(WithName("both"),
 		WithRemote(remote.NewGoRedisV8Adaptor(rds)),
 		WithLocal(localNew(localType)),
 		WithErrNotFound(errTestNotFound),
@@ -710,7 +719,7 @@ func (mockDecode) Marshal(v interface{}) ([]byte, error) {
 	return json.Marshal(v)
 }
 
-func (mockDecode) Unmarshal(data []byte, v interface{}) error {
+func (mockDecode) Unmarshal([]byte, interface{}) error {
 	return errors.New("mock Unmarshal error")
 }
 
@@ -718,7 +727,7 @@ func (mockDecode) Name() string {
 	return mockUnmarshalErr
 }
 
-func (mockEncode) Marshal(v interface{}) ([]byte, error) {
+func (mockEncode) Marshal(interface{}) ([]byte, error) {
 	return nil, errors.New("mock Marshal error")
 }
 
