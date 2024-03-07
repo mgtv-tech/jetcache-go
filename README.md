@@ -13,7 +13,7 @@ Translations: [English](README_en.md) | [简体中文](README.md)
 
 - ✅ 二级缓存自由组合：本地缓存、分布式缓存、本地缓存+分布式缓存
 - ✅ `Once`接口采用单飞(`singleflight`)模式，高并发且线程安全
-- ✅ 默认采用[sonic](https://github.com/bytedance/sonic)来编解码Value。可选[MsgPack](https://github.com/vmihailenco/msgpack)、原生`json`
+- ✅ 默认采用[MsgPack](https://github.com/vmihailenco/msgpack)来编解码Value。可选[sonic](https://github.com/bytedance/sonic)、原生`json`
 - ✅ 本地缓存默认实现了[TinyLFU](https://github.com/dgryski/go-tinylfu)和[FreeCache](https://github.com/coocood/freecache)
 - ✅ 分布式缓存默认实现了[go-redis/v8](https://github.com/redis/go-redis)的适配器，你也可以自定义实现
 - ✅ 可以自定义`errNotFound`，通过占位符替换，缓存空结果防止缓存穿透
@@ -81,7 +81,7 @@ func Example_basicUsage() {
 		},
 	})
 
-	mycache := cache.New[string, any](cache.WithName("any"),
+	mycache := cache.New(cache.WithName("any"),
 		cache.WithRemote(remote.NewGoRedisV8Adaptor(ring)),
 		cache.WithLocal(local.NewFreeCache(256*local.MB, time.Minute)),
 		cache.WithErrNotFound(errRecordNotFound))
@@ -109,7 +109,7 @@ func Example_advancedUsage() {
 		},
 	})
 
-	mycache := cache.New[string, any](cache.WithName("any"),
+	mycache := cache.New(cache.WithName("any"),
 		cache.WithRemote(remote.NewGoRedisV8Adaptor(ring)),
 		cache.WithLocal(local.NewFreeCache(256*local.MB, time.Minute)),
 		cache.WithErrNotFound(errRecordNotFound),
@@ -136,18 +136,19 @@ func Example_mGetUsage() {
 		},
 	})
 
-	mycache := cache.New[int, *object](cache.WithName("any"),
+	mycache := cache.New(cache.WithName("any"),
 		cache.WithRemote(remote.NewGoRedisV8Adaptor(ring)),
 		cache.WithLocal(local.NewFreeCache(256*local.MB, time.Minute)),
 		cache.WithErrNotFound(errRecordNotFound),
 		cache.WithRemoteExpiry(time.Minute),
 	)
+	cacheT := cache.NewT[int, *object](mycache)
 
 	ctx := context.TODO()
-	key := "mykey"
+	key := "mget"
 	ids := []int{1, 2, 3}
 
-	ret := mycache.MGet(ctx, key, ids, func(ctx context.Context, ids []int) (map[int]*object, error) {
+	ret := cacheT.MGet(ctx, key, ids, func(ctx context.Context, ids []int) (map[int]*object, error) {
 		return mockDBMGetObject(ids)
 	})
 
@@ -158,7 +159,7 @@ func Example_mGetUsage() {
 	fmt.Println(b.String())
 	//Output: &{mystring 1}&{mystring 2}<nil>
 
-	mycache.Close()
+	cacheT.Close()
 }
 ```
 
@@ -223,7 +224,7 @@ mycache := cache.New[string, any]("any",
 #### 自动刷新缓存
 `jetcache-go`提供了自动刷新缓存的能力，目的是为了防止缓存失效时造成的雪崩效应打爆数据库。对一些key比较少，实时性要求不高，加载开销非常大的缓存场景，适合使用自动刷新。上面的代码指定每分钟刷新一次，1小时如果没有访问就停止刷新。如果缓存是redis或者多级缓存最后一级是redis，缓存加载行为是全局唯一的，也就是说不管有多少台服务器，同时只有一个服务器在刷新，目的是为了降低后端的加载负担。
 ```go
-mycache := cache.New[string, any](cache.WithName("any"),
+mycache := cache.New(cache.WithName("any"),
 		// ...
 		// cache.WithRefreshDuration 设置异步刷新时间间隔
 		cache.WithRefreshDuration(time.Minute),
@@ -239,16 +240,17 @@ err := mycache.Once(ctx, key, cache.Value(obj), cache.Refresh(true), cache.Do(fu
 #### MGet批量查询
 `MGet` 通过 `golang`的泛型机制 + `Load` 函数，非常友好的多级缓存批量查询ID对应的实体。如果缓存是redis或者多级缓存最后一级是redis，查询时采用`Pipeline`实现读写操作，提升性能。需要说明是，针对异常场景（IO异常、序列化异常等），我们设计思路是尽可能提供有损服务，防止穿透。
 ```go
-mycache := cache.New[int, *object](cache.WithName("any"),
+mycache := cache.New(cache.WithName("any"),
 		// ...
 		cache.WithRemoteExpiry(time.Minute),
 	)
+cacheT := cache.NewT[int, *object](mycache)
 
 ctx := context.TODO()
 key := "mykey"
 ids := []int{1, 2, 3}
 
-ret := mycache.MGet(ctx, key, ids, func(ctx context.Context, ids []int) (map[int]*object, error) {
+ret := cacheT.MGet(ctx, key, ids, func(ctx context.Context, ids []int) (map[int]*object, error) {
     return mockDBMGetObject(ids)
 })
 ```
