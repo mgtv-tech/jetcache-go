@@ -123,7 +123,7 @@ func BenchmarkSetWithFreeCache(b *testing.B) {
 }
 
 var (
-	asyncCache Cache[int, *object]
+	asyncCache Cache
 	newOnce    sync.Once
 )
 
@@ -185,14 +185,14 @@ func BenchmarkOnceRefreshWithStats(b *testing.B) {
 
 func BenchmarkMGetWithStats(b *testing.B) {
 	logger.SetLevel(logger.LevelInfo)
-	cache := newRefreshBoth()
+	mycache := NewT[int, *object](newRefreshBoth())
 	ids := []int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}
 
 	b.ReportAllocs()
 	b.ResetTimer()
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
-			cache.MGet(context.TODO(), "key", ids, func(ctx context.Context, ids []int) (map[int]*object, error) {
+			mycache.MGet(context.TODO(), "key", ids, func(ctx context.Context, ids []int) (map[int]*object, error) {
 				return mockDBMGetObject(ids)
 			})
 		}
@@ -210,12 +210,12 @@ func mockDBMGetObject(ids []int) (map[int]*object, error) {
 	return ret, nil
 }
 
-func newRefreshBoth() Cache[int, *object] {
+func newRefreshBoth() Cache {
 	tInit()
 
 	newOnce.Do(func() {
 		name := "bench"
-		asyncCache = New[int, *object](WithName(name),
+		asyncCache = New(WithName(name),
 			WithRemote(remote.NewGoRedisV8Adaptor(rdb)),
 			WithLocal(local.NewFreeCache(256*local.MB, 3*time.Second)),
 			WithErrNotFound(errTestNotFound),
