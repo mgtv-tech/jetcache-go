@@ -31,7 +31,6 @@ func (w *T[K, V]) MGet(ctx context.Context, key string, ids []K, fn func(context
 		fnValues, err := fn(ctx, missIds)
 		if err != nil {
 			c.statsHandler.IncrQueryFail(err)
-			logger.Error("MGet#fn(%s) error(%v)", util.JoinAny(",", ids), err)
 		} else {
 			placeholderValues := make(map[string]any, len(ids))
 			cacheValues := make(map[string]any, len(ids))
@@ -40,7 +39,7 @@ func (w *T[K, V]) MGet(ctx context.Context, key string, ids []K, fn func(context
 				cacheKey := util.JoinAny(":", key, rk)
 				if b, err := c.Marshal(rv); err != nil {
 					placeholderValues[cacheKey] = notFoundPlaceholder
-					logger.Error("MGet#w.Marshal(%v) error(%v)", rv, err)
+					logger.Warn("MGet#w.Marshal(%v) error(%v)", rv, err)
 				} else {
 					cacheValues[cacheKey] = b
 				}
@@ -69,12 +68,12 @@ func (w *T[K, V]) MGet(ctx context.Context, key string, ids []K, fn func(context
 			if c.remote != nil {
 				if len(placeholderValues) > 0 {
 					if err = c.remote.MSet(ctx, placeholderValues, c.notFoundExpiry); err != nil {
-						logger.Error("MGet#MSet error(%v)", err)
+						logger.Warn("MGet#remote.MSet error(%v)", err)
 					}
 				}
 				if len(cacheValues) > 0 {
 					if err = c.remote.MSet(ctx, cacheValues, c.remoteExpiry); err != nil {
-						logger.Error("MGet#MSet error(%v)", err)
+						logger.Warn("MGet#remote.MSet error(%v)", err)
 					}
 				}
 			}
@@ -100,7 +99,7 @@ func (w *T[K, V]) mGetCache(ctx context.Context, key string, ids []K) (v map[K]V
 				}
 				var varT V
 				if err := c.Unmarshal(b, &varT); err != nil {
-					logger.Error("mGetCache#c.Unmarshal(%s) error(%v)", cacheKey, err)
+					logger.Warn("mGetCache#c.Unmarshal(%s) error(%v)", cacheKey, err)
 				} else {
 					v[id] = varT
 				}
@@ -130,7 +129,7 @@ func (w *T[K, V]) mGetCache(ctx context.Context, key string, ids []K) (v map[K]V
 					}
 					var varT V
 					if err = c.Unmarshal(b, &varT); err != nil {
-						logger.Error("mGetCache#c.Unmarshal(%s) error(%v)", mk, err)
+						logger.Warn("mGetCache#c.Unmarshal(%s) error(%v)", mk, err)
 					} else {
 						v[mv] = varT
 						if c.local != nil {
