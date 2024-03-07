@@ -312,6 +312,24 @@ var _ = Describe("Cache", func() {
 					Expect(ret).To(Equal(map[int]*object{}))
 				}
 			})
+
+			It("with will skip elements that remote MSet error", func() {
+				if cache.CacheType() == TypeRemote {
+					codecErrCache := New(WithName("codecErr"),
+						WithRemote(&mockGoRedisMGetMSetErrAdapter{}))
+					cacheT := NewT[int, *object](codecErrCache)
+					ids := []int{1, 2, 3}
+					// 1st marshal error, but return origin load func data
+					ret := cacheT.MGet(context.Background(), "key", ids,
+						func(ctx context.Context, ids []int) (map[int]*object, error) {
+							return map[int]*object{1: {Str: "str1", Num: 1}, 2: {Str: "str2", Num: 2}}, nil
+						})
+					Expect(ret).To(Equal(map[int]*object{1: {Str: "str1", Num: 1}, 2: {Str: "str2", Num: 2}}))
+					// 2nd cache hit placeholder "*", then return miss
+					ret = cacheT.MGet(context.Background(), "key", ids, nil)
+					Expect(ret).To(Equal(map[int]*object{}))
+				}
+			})
 		})
 
 		Describe("Once func", func() {
@@ -737,4 +755,41 @@ func (mockEncode) Unmarshal(data []byte, v interface{}) error {
 
 func (mockEncode) Name() string {
 	return mockMarshalErr
+}
+
+var _ remote.Remote = (*mockGoRedisMGetMSetErrAdapter)(nil)
+
+type mockGoRedisMGetMSetErrAdapter struct {
+}
+
+func (m mockGoRedisMGetMSetErrAdapter) SetEX(ctx context.Context, key string, value any, expire time.Duration) error {
+	panic("implement me")
+}
+
+func (m mockGoRedisMGetMSetErrAdapter) SetNX(ctx context.Context, key string, value any, expire time.Duration) (val bool, err error) {
+	panic("implement me")
+}
+
+func (m mockGoRedisMGetMSetErrAdapter) SetXX(ctx context.Context, key string, value any, expire time.Duration) (val bool, err error) {
+	panic("implement me")
+}
+
+func (m mockGoRedisMGetMSetErrAdapter) Get(ctx context.Context, key string) (val string, err error) {
+	panic("implement me")
+}
+
+func (m mockGoRedisMGetMSetErrAdapter) Del(ctx context.Context, key string) (val int64, err error) {
+	panic("implement me")
+}
+
+func (m mockGoRedisMGetMSetErrAdapter) MGet(ctx context.Context, keys ...string) (map[string]any, error) {
+	return nil, errors.New("any")
+}
+
+func (m mockGoRedisMGetMSetErrAdapter) MSet(ctx context.Context, value map[string]any, expire time.Duration) error {
+	return errors.New("any")
+}
+
+func (m mockGoRedisMGetMSetErrAdapter) Nil() error {
+	panic("implement me")
 }
