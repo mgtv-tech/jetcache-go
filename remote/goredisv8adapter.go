@@ -6,8 +6,6 @@ import (
 	"time"
 
 	"github.com/go-redis/redis/v8"
-
-	"github.com/daoshenzzg/jetcache-go/logger"
 )
 
 var _ Remote = (*GoRedisV8Adaptor)(nil)
@@ -55,16 +53,13 @@ func (r *GoRedisV8Adaptor) MGet(ctx context.Context, keys ...string) (map[string
 
 	cmder, err := pipeline.Exec(ctx)
 	if err != nil && !errors.Is(err, r.Nil()) {
-		logger.Error("MGet:pipeline.Exec error(%v)", err)
+		return nil, err
 	}
 
 	for idx, cmd := range cmder {
 		if strCmd, ok := cmd.(*redis.StringCmd); ok {
 			key := keyIdxMap[idx]
-			val, err := strCmd.Result()
-			if err != nil && !errors.Is(err, r.Nil()) {
-				logger.Error("MGet#strCmd(%s) error(%v)", keyIdxMap[idx], err)
-			} else if len(val) > 0 {
+			if val, _ := strCmd.Result(); len(val) > 0 {
 				ret[key] = val
 			}
 		}
