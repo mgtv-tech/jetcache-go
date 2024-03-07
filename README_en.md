@@ -225,7 +225,7 @@ mycache := cache.New("any",
 ### Usage Scenarios
 
 #### Automatic Cache Refresh
-`jetcache-go` provides automatic cache refresh capability to prevent cache avalanche and database overload when cache misses occur. It is suitable for scenarios with a small number of keys, low real-time requirements, and high loading overhead. The code above specifies a refresh every minute, and stops refreshing after 1 hour without access. If the cache is Redis or the last level of a multi-level cache is Redis, the cache loading behavior is globally unique, which means that only one server is refreshing at a time regardless of the number of servers, to reduce the load on the backend.
+`jetcache-go` provides automatic cache refresh capability to prevent cache avalanche and database overload when cache misses occur. It is suitable for scenarios with a small number of keys, low real-time requirements, and high loading overhead. The code below specifies a refresh every minute, and stops refreshing after 1 hour without access. If the cache is Redis or the last level of a multi-level cache is Redis, the cache loading behavior is globally unique, which means that only one server is refreshing at a time regardless of the number of servers, to reduce the load on the backend.
 ```go
 mycache := cache.New(cache.WithName("any"),
        // ...
