@@ -1,14 +1,14 @@
 <p>
-<a href="https://github.com/daoshenzzg/jetcache-go/actions"><img src="https://github.com/daoshenzzg/jetcache-go/workflows/Go/badge.svg" alt="Build Status"></a>
-<a href="https://codecov.io/gh/daoshenzzg/jetcache-go"><img src="https://codecov.io/gh/daoshenzzg/jetcache-go/master/graph/badge.svg" alt="codeCov"></a>
-<a href="https://goreportcard.com/report/github.com/daoshenzzg/jetcache-go"><img src="https://goreportcard.com/badge/github.com/daoshenzzg/jetcache-go" alt="Go Repport Card"></a>
-<a href="https://github.com/daoshenzzg/jetcache-go/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-green" alt="License"></a>
+<a href="https://github.com/mgtv-tech/jetcache-go/actions"><img src="https://github.com/mgtv-tech/jetcache-go/workflows/Go/badge.svg" alt="Build Status"></a>
+<a href="https://codecov.io/gh/mgtv-tech/jetcache-go"><img src="https://codecov.io/gh/mgtv-tech/jetcache-go/master/graph/badge.svg" alt="codeCov"></a>
+<a href="https://goreportcard.com/report/github.com/mgtv-tech/jetcache-go"><img src="https://goreportcard.com/badge/github.com/mgtv-tech/jetcache-go" alt="Go Repport Card"></a>
+<a href="https://github.com/mgtv-tech/jetcache-go/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-green" alt="License"></a>
 </p>
 
 Translations: [English](README_en.md) | [简体中文](README.md)
 
 # 介绍
-[jetcache-go](https://github.com/daoshenzzg/jetcache-go)是基于[go-redis/cache](https://github.com/go-redis/cache)拓展的通用缓存访问框架。
+[jetcache-go](https://github.com/mgtv-tech/jetcache-go)是基于[go-redis/cache](https://github.com/go-redis/cache)拓展的通用缓存访问框架。
 实现了类似Java版[JetCache](https://github.com/alibaba/jetcache)的核心功能，包括：
 
 - ✅ 二级缓存自由组合：本地缓存、分布式缓存、本地缓存+分布式缓存
@@ -25,12 +25,12 @@ Translations: [English](README_en.md) | [简体中文](README.md)
 # 安装
 使用最新版本的jetcache-go，您可以在项目中导入该库：
 ```shell
-go get github.com/daoshenzzg/jetcache-go
+go get github.com/mgtv-tech/jetcache-go
 ```
 
 ## 快速开始
 
-### 
+###
 ```go
 package cache_test
 
@@ -43,10 +43,10 @@ import (
 
 	"github.com/go-redis/redis/v8"
 
-	"github.com/daoshenzzg/jetcache-go"
-	"github.com/daoshenzzg/jetcache-go/local"
-	"github.com/daoshenzzg/jetcache-go/remote"
-	"github.com/daoshenzzg/jetcache-go/util"
+	"github.com/mgtv-tech/jetcache-go"
+	"github.com/mgtv-tech/jetcache-go/local"
+	"github.com/mgtv-tech/jetcache-go/remote"
+	"github.com/mgtv-tech/jetcache-go/util"
 )
 
 var errRecordNotFound = errors.New("mock gorm.errRecordNotFound")
@@ -118,9 +118,10 @@ func Example_advancedUsage() {
 	ctx := context.TODO()
 	key := util.JoinAny(":", "mykey", 1)
 	obj := new(object)
-	if err := mycache.Once(ctx, key, cache.Value(obj), cache.Refresh(true), cache.Do(func(ctx context.Context) (any, error) {
-		return mockDBGetObject(1)
-	})); err != nil {
+	if err := mycache.Once(ctx, key, cache.Value(obj), cache.TTL(time.Hour), cache.Refresh(true),
+		cache.Do(func(ctx context.Context) (any, error) {
+			return mockDBGetObject(1)
+		})); err != nil {
 		panic(err)
 	}
 	fmt.Println(obj)
@@ -198,7 +199,7 @@ bench_remote|        5153|      95.03%|        4897|         256|           -|  
 
 ### 自定义日志
 ```go
-import "github.com/daoshenzzg/jetcache-go/logger"
+import "github.com/mgtv-tech/jetcache-go/logger"
 
 // Set your Logger
 logger.SetDefaultLogger(l logger.Logger)
@@ -207,8 +208,8 @@ logger.SetDefaultLogger(l logger.Logger)
 ### 自定义编解码
 ```go
 import (
-    "github.com/daoshenzzg/jetcache-go"
-    "github.com/daoshenzzg/jetcache-go/encoding"
+    "github.com/mgtv-tech/jetcache-go"
+    "github.com/mgtv-tech/jetcache-go/encoding"
 )
 
 // Register your codec
@@ -262,3 +263,8 @@ ret := cacheT.MGet(ctx, key, ids, func(ctx context.Context, ids []int) (map[int]
 
 - **追求编解码性能：** 例如本地缓存命中率极高，但本地缓存byte数组转对象的反序列化操作非常耗CPU，那么选择`sonic`。
 - **兼顾性能和极致的存储空间：** 选择`MsgPack`，MsgPack采用MsgPack编解码，内容>64个字节，会采用`snappy`压缩。
+
+> Tip：使用的时候记得按需导包来完成对应的编解码器注册
+```go
+ _ "github.com/mgtv-tech/jetcache-go/encoding/sonic"
+```

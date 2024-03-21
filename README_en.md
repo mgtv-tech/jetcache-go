@@ -1,14 +1,14 @@
 <p>
-<a href="https://github.com/daoshenzzg/jetcache-go/actions"><img src="https://github.com/daoshenzzg/jetcache-go/workflows/Go/badge.svg" alt="Build Status"></a>
-<a href="https://codecov.io/gh/daoshenzzg/jetcache-go"><img src="https://codecov.io/gh/daoshenzzg/jetcache-go/master/graph/badge.svg" alt="codeCov"></a>
-<a href="https://goreportcard.com/report/github.com/daoshenzzg/jetcache-go"><img src="https://goreportcard.com/badge/github.com/daoshenzzg/jetcache-go" alt="Go Repport Card"></a>
-<a href="https://github.com/daoshenzzg/jetcache-go/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-green" alt="License"></a>
+<a href="https://github.com/mgtv-tech/jetcache-go/actions"><img src="https://github.com/mgtv-tech/jetcache-go/workflows/Go/badge.svg" alt="Build Status"></a>
+<a href="https://codecov.io/gh/mgtv-tech/jetcache-go"><img src="https://codecov.io/gh/mgtv-tech/jetcache-go/master/graph/badge.svg" alt="codeCov"></a>
+<a href="https://goreportcard.com/report/github.com/mgtv-tech/jetcache-go"><img src="https://goreportcard.com/badge/github.com/mgtv-tech/jetcache-go" alt="Go Repport Card"></a>
+<a href="https://github.com/mgtv-tech/jetcache-go/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-green" alt="License"></a>
 </p>
 
 Translate to: [简体中文](README.md)
 
 # Introduction
-[jetcache-go](https://github.com/daoshenzzg/jetcache-go) is a general-purpose cache access framework based on
+[jetcache-go](https://github.com/mgtv-tech/jetcache-go) is a general-purpose cache access framework based on
 [go-redis/cache](https://github.com/go-redis/cache). It implements the core features of the Java version of
 [JetCache](https://github.com/alibaba/jetcache), including:
 
@@ -26,7 +26,7 @@ Translate to: [简体中文](README.md)
 # Installation
 To start using the latest version of jetcache-go, you can import the library into your project:
 ```shell
-go get github.com/daoshenzzg/jetcache-go
+go get github.com/mgtv-tech/jetcache-go
 ```
 
 ## Getting started
@@ -44,10 +44,10 @@ import (
 
 	"github.com/go-redis/redis/v8"
 
-	"github.com/daoshenzzg/jetcache-go"
-	"github.com/daoshenzzg/jetcache-go/local"
-	"github.com/daoshenzzg/jetcache-go/remote"
-	"github.com/daoshenzzg/jetcache-go/util"
+	"github.com/mgtv-tech/jetcache-go"
+	"github.com/mgtv-tech/jetcache-go/local"
+	"github.com/mgtv-tech/jetcache-go/remote"
+	"github.com/mgtv-tech/jetcache-go/util"
 )
 
 var errRecordNotFound = errors.New("mock gorm.errRecordNotFound")
@@ -119,9 +119,10 @@ func Example_advancedUsage() {
 	ctx := context.TODO()
 	key := util.JoinAny(":", "mykey", 1)
 	obj := new(object)
-	if err := mycache.Once(ctx, key, cache.Value(obj), cache.Refresh(true), cache.Do(func(ctx context.Context) (any, error) {
-		return mockDBGetObject(1)
-	})); err != nil {
+	if err := mycache.Once(ctx, key, cache.Value(obj), cache.TTL(time.Hour), cache.Refresh(true),
+		cache.Do(func(ctx context.Context) (any, error) {
+			return mockDBGetObject(1)
+		})); err != nil {
 		panic(err)
 	}
 	fmt.Println(obj)
@@ -200,7 +201,7 @@ bench_remote|        5153|      95.03%|        4897|         256|           -|  
 
 ### Custom Logger
 ```go
-import "github.com/daoshenzzg/jetcache-go/logger"
+import "github.com/mgtv-tech/jetcache-go/logger"
 
 // Set your Logger
 logger.SetDefaultLogger(l logger.Logger)
@@ -209,8 +210,8 @@ logger.SetDefaultLogger(l logger.Logger)
 ### Custom Encoding and Decoding
 ```go
 import (
-    "github.com/daoshenzzg/jetcache-go"
-    "github.com/daoshenzzg/jetcache-go/encoding"
+    "github.com/mgtv-tech/jetcache-go"
+    "github.com/mgtv-tech/jetcache-go/encoding"
 )
 
 // Register your codec
@@ -265,3 +266,8 @@ ret := mycache.MGet(ctx, key, ids, func(ctx context.Context, ids []int) (map[int
 
 - **For high-performance encoding and decoding:** If the local cache hit rate is extremely high, but the deserialization operation of converting byte arrays to objects in the local cache consumes a lot of CPU, choose `sonic`.
 - **For balanced performance and extreme storage space:** Choose `MsgPack`, which uses MsgPack encoding and decoding. Content > 64 bytes will be compressed with `snappy`.
+
+> Tip: Remember to import the necessary packages as needed to register the codec.
+```go
+ _ "github.com/mgtv-tech/jetcache-go/encoding/sonic"
+```
