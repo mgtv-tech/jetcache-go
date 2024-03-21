@@ -11,9 +11,9 @@ import (
 
 	"github.com/go-redis/redis/v8"
 
-	"github.com/daoshenzzg/jetcache-go/local"
-	"github.com/daoshenzzg/jetcache-go/logger"
-	"github.com/daoshenzzg/jetcache-go/remote"
+	"github.com/mgtv-tech/jetcache-go/local"
+	"github.com/mgtv-tech/jetcache-go/logger"
+	"github.com/mgtv-tech/jetcache-go/remote"
 )
 
 var (

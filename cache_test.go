@@ -16,10 +16,10 @@ import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 
-	"github.com/daoshenzzg/jetcache-go/encoding"
-	"github.com/daoshenzzg/jetcache-go/local"
-	"github.com/daoshenzzg/jetcache-go/remote"
-	"github.com/daoshenzzg/jetcache-go/util"
+	"github.com/mgtv-tech/jetcache-go/encoding"
+	"github.com/mgtv-tech/jetcache-go/local"
+	"github.com/mgtv-tech/jetcache-go/remote"
+	"github.com/mgtv-tech/jetcache-go/util"
 )
 
 var (

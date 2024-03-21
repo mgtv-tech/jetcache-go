@@ -6,8 +6,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/daoshenzzg/jetcache-go/encoding/json"
-	"github.com/daoshenzzg/jetcache-go/stats"
+	"github.com/mgtv-tech/jetcache-go/encoding/json"
+	"github.com/mgtv-tech/jetcache-go/stats"
 )
 
 func TestCacheOptions(t *testing.T) {

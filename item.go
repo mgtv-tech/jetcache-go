@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/daoshenzzg/jetcache-go/logger"
+	"github.com/mgtv-tech/jetcache-go/logger"
 )
 
 type (

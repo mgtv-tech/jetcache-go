@@ -3,7 +3,7 @@ package json
 import (
 	"encoding/json"
 
-	"github.com/daoshenzzg/jetcache-go/encoding"
+	"github.com/mgtv-tech/jetcache-go/encoding"
 )
 
 // Name is the name registered for the json codec.

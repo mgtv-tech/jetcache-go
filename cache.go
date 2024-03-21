@@ -12,9 +12,9 @@ import (
 	"golang.org/x/sync/semaphore"
 	"golang.org/x/sync/singleflight"
 
-	"github.com/daoshenzzg/jetcache-go/encoding"
-	"github.com/daoshenzzg/jetcache-go/logger"
-	"github.com/daoshenzzg/jetcache-go/util"
+	"github.com/mgtv-tech/jetcache-go/encoding"
+	"github.com/mgtv-tech/jetcache-go/logger"
+	"github.com/mgtv-tech/jetcache-go/util"
 )
 
 const (
