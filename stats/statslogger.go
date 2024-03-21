@@ -7,7 +7,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/daoshenzzg/jetcache-go/logger"
+	"github.com/mgtv-tech/jetcache-go/logger"
 )
 
 const defaultStatsInterval = time.Minute
