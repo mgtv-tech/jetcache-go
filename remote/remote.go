@@ -21,8 +21,10 @@ type Remote interface {
 	// Del deletes the cached value associated with a key.
 	Del(ctx context.Context, key string) (val int64, err error)
 
+	// MGet retrieves the values of multiple keys.
 	MGet(ctx context.Context, keys ...string) (map[string]any, error)
 
+	// MSet sets multiple key-value pairs in the cache.
 	MSet(ctx context.Context, value map[string]any, expire time.Duration) error
 
 	// Nil returns an error indicating that the key does not exist.
