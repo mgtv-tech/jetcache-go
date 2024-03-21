@@ -1,4 +1,4 @@
-module github.com/daoshenzzg/jetcache-go
+module github.com/mgtv-tech/jetcache-go
 
 go 1.18
 

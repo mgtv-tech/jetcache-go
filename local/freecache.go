@@ -7,8 +7,8 @@ import (
 
 	"github.com/coocood/freecache"
 
-	"github.com/daoshenzzg/jetcache-go/logger"
-	"github.com/daoshenzzg/jetcache-go/util"
+	"github.com/mgtv-tech/jetcache-go/logger"
+	"github.com/mgtv-tech/jetcache-go/util"
 )
 
 var _ Local = (*FreeCache)(nil)

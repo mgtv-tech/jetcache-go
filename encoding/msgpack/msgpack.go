@@ -6,7 +6,7 @@ import (
 	"github.com/klauspost/compress/s2"
 	"github.com/vmihailenco/msgpack/v5"
 
-	"github.com/daoshenzzg/jetcache-go/encoding"
+	"github.com/mgtv-tech/jetcache-go/encoding"
 )
 
 // Name is the name registered for the json codec.
