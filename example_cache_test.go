@@ -5,14 +5,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	cache "github.com/mgtv-tech/jetcache-go"
 	"time"
 
 	"github.com/go-redis/redis/v8"
 
-	"github.com/daoshenzzg/jetcache-go"
-	"github.com/daoshenzzg/jetcache-go/local"
-	"github.com/daoshenzzg/jetcache-go/remote"
-	"github.com/daoshenzzg/jetcache-go/util"
+	"github.com/mgtv-tech/jetcache-go/local"
+	"github.com/mgtv-tech/jetcache-go/remote"
+	"github.com/mgtv-tech/jetcache-go/util"
 )
 
 var errRecordNotFound = errors.New("mock gorm.errRecordNotFound")
@@ -84,9 +84,10 @@ func Example_advancedUsage() {
 	ctx := context.TODO()
 	key := util.JoinAny(":", "mykey", 1)
 	obj := new(object)
-	if err := mycache.Once(ctx, key, cache.Value(obj), cache.Refresh(true), cache.Do(func(ctx context.Context) (any, error) {
-		return mockDBGetObject(1)
-	})); err != nil {
+	if err := mycache.Once(ctx, key, cache.Value(obj), cache.TTL(time.Hour), cache.Refresh(true),
+		cache.Do(func(ctx context.Context) (any, error) {
+			return mockDBGetObject(1)
+		})); err != nil {
 		panic(err)
 	}
 	fmt.Println(obj)
