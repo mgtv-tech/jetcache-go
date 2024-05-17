@@ -10,6 +10,7 @@ import (
 type (
 	// ItemOption defines the method to customize an Options.
 	ItemOption func(o *item)
+
 	// DoFunc returns getValue to be cached.
 	DoFunc func(ctx context.Context) (any, error)
 

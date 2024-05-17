@@ -3,13 +3,14 @@ package cache_test
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
-	cache "github.com/mgtv-tech/jetcache-go"
 	"time"
 
 	"github.com/go-redis/redis/v8"
 
+	cache "github.com/mgtv-tech/jetcache-go"
 	"github.com/mgtv-tech/jetcache-go/local"
 	"github.com/mgtv-tech/jetcache-go/remote"
 	"github.com/mgtv-tech/jetcache-go/util"
@@ -127,4 +128,59 @@ func Example_mGetUsage() {
 	//Output: &{mystring 1}&{mystring 2}<nil>
 
 	cacheT.Close()
+}
+
+func Example_syncLocalUsage() {
+	ring := redis.NewRing(&redis.RingOptions{
+		Addrs: map[string]string{
+			"localhost": ":6379",
+		},
+	})
+
+	sourceID := "12345678" // Unique identifier for this cache instance
+	channelName := "syncLocalChannel"
+	pubSub := ring.Subscribe(context.Background(), channelName)
+
+	mycache := cache.New(cache.WithName("any"),
+		cache.WithRemote(remote.NewGoRedisV8Adaptor(ring)),
+		cache.WithLocal(local.NewFreeCache(256*local.MB, time.Minute)),
+		cache.WithErrNotFound(errRecordNotFound),
+		cache.WithRemoteExpiry(time.Minute),
+		cache.WithSourceId(sourceID),
+		cache.WithSyncLocal(true),
+		cache.WithEventHandler(func(event *cache.Event) {
+			// Broadcast local cache invalidation for the received keys
+			bs, _ := json.Marshal(event)
+			ring.Publish(context.Background(), channelName, string(bs))
+		}),
+	)
+	obj, _ := mockDBGetObject(1)
+	if err := mycache.Set(context.TODO(), "mykey", cache.Value(obj), cache.TTL(time.Hour)); err != nil {
+		panic(err)
+	}
+
+	go func() {
+		for {
+			msg, err := pubSub.ReceiveMessage(context.Background())
+			if err != nil {
+				panic(err)
+			}
+			var event *cache.Event
+			if err = json.Unmarshal([]byte(msg.Payload), &event); err != nil {
+				panic(err)
+			}
+			fmt.Println(event.Keys)
+
+			// Invalidate local cache for received keys (except own events)
+			if event.SourceID != sourceID {
+				for _, key := range event.Keys {
+					mycache.DeleteFromLocalCache(key)
+				}
+			}
+		}
+	}()
+
+	// Output: [mykey]
+	mycache.Close()
+	time.Sleep(time.Second)
 }

@@ -1,10 +1,12 @@
 package cache
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"strconv"
 	"sync"
 	"sync/atomic"
@@ -18,6 +20,7 @@ import (
 
 	"github.com/mgtv-tech/jetcache-go/encoding"
 	"github.com/mgtv-tech/jetcache-go/local"
+	"github.com/mgtv-tech/jetcache-go/logger"
 	"github.com/mgtv-tech/jetcache-go/remote"
 	"github.com/mgtv-tech/jetcache-go/util"
 )
@@ -35,6 +38,7 @@ const (
 	localExpire                = time.Minute
 	refreshDuration            = time.Second
 	stopRefreshAfterLastAccess = 3 * refreshDuration
+	testEventChSize            = 10
 )
 
 type (
@@ -571,7 +575,7 @@ var _ = Describe("Cache", func() {
 				Expect(err).NotTo(HaveOccurred())
 				Expect(value).To(Equal("V1"))
 
-				perform(100, func(i int) {
+				perform(200, func(i int) {
 					rdb.Del(context.TODO(), lockKey)
 					jetCache.externalLoad(ctx, &refreshTask{key: key, do: doFunc, ttl: time.Minute}, time.Now())
 				})
@@ -626,6 +630,153 @@ var _ = Describe("Cache", func() {
 				Expect(jetCache.TaskSize()).To(Equal(0))
 			})
 		})
+
+		Describe("Sync Local", func() {
+			It("Set with sync local", func() {
+				var jetCache = cache.(*jetCache)
+				if !jetCache.isSyncLocal() {
+					return
+				}
+
+				err := jetCache.Set(ctx, key, Value(obj), TTL(time.Hour))
+				Expect(err).NotTo(HaveOccurred())
+
+				e, ok := <-jetCache.eventCh
+				Expect(ok).To(BeTrue())
+				Expect(e.Keys[0]).To(Equal(key))
+				Expect(e.EventType).To(Equal(EventTypeSet))
+				Expect(e.CacheName).To(Equal(jetCache.name))
+				Expect(e.SourceID).NotTo(BeEmpty())
+			})
+
+			It("Delete with sync local", func() {
+				var jetCache = cache.(*jetCache)
+				if !jetCache.isSyncLocal() {
+					return
+				}
+
+				err := jetCache.Delete(ctx, key)
+				Expect(err).NotTo(HaveOccurred())
+
+				e, ok := <-jetCache.eventCh
+				Expect(ok).To(BeTrue())
+				Expect(e.Keys[0]).To(Equal(key))
+				Expect(e.EventType).To(Equal(EventTypeDelete))
+			})
+
+			It("MGet with sync local", func() {
+				var jetCache = cache.(*jetCache)
+				if !jetCache.isSyncLocal() {
+					return
+				}
+
+				ids := []int{1, 2, 3}
+				_ = cacheT.MGet(context.Background(), "key", ids,
+					func(ctx context.Context, ints []int) (map[int]*object, error) {
+						return map[int]*object{1: {Str: "str1", Num: 1}, 2: {Str: "str2", Num: 2}}, nil
+					})
+
+				e, ok := <-jetCache.eventCh
+				Expect(ok).To(BeTrue())
+				Expect(len(e.Keys)).To(Equal(3))
+				Expect(e.EventType).To(Equal(EventTypeMGet))
+
+				_ = cacheT.MGet(context.Background(), "key", ids,
+					func(ctx context.Context, ints []int) (map[int]*object, error) {
+						return map[int]*object{1: {Str: "str1", Num: 1}, 2: {Str: "str2", Num: 2}}, nil
+					})
+
+				timeout := make(chan bool, 1)
+				go func() {
+					time.Sleep(100 * time.Millisecond)
+					timeout <- true
+				}()
+				select {
+				case <-jetCache.eventCh:
+					Expect(1).To(Equal(2))
+				case ok := <-timeout:
+					Expect(ok).To(BeTrue())
+				}
+			})
+
+			It("Once with sync local", func() {
+				var jetCache = cache.(*jetCache)
+				if !jetCache.isSyncLocal() {
+					return
+				}
+
+				do := func(context.Context) (any, error) {
+					return nil, errTestNotFound
+				}
+				var value string
+				_ = jetCache.Once(ctx, key, Value(&value), Do(do))
+				e, ok := <-jetCache.eventCh
+				Expect(ok).To(BeTrue())
+				Expect(e.Keys[0]).To(Equal(key))
+				Expect(e.EventType).To(Equal(EventTypeSetByOnce))
+			})
+
+			It("Once with refresh and sync local", func() {
+				var jetCache = cache.(*jetCache)
+				if !jetCache.isSyncLocal() {
+					return
+				}
+
+				do := func(context.Context) (any, error) {
+					return nil, errTestNotFound
+				}
+				var value string
+				_ = jetCache.Once(ctx, key, Value(&value), Do(do), Refresh(true))
+				e, ok := <-jetCache.eventCh
+				Expect(ok).To(BeTrue())
+				Expect(e.Keys[0]).To(Equal(key))
+				Expect(e.EventType).To(Equal(EventTypeSetByOnce))
+
+				timeout := make(chan bool, 1)
+				go func() {
+					time.Sleep(refreshDuration + 10*time.Millisecond)
+					timeout <- true
+				}()
+				select {
+				case e, ok := <-jetCache.eventCh:
+					Expect(ok).To(BeTrue())
+					Expect(e.EventType).To(Equal(EventTypeSetByRefresh))
+				case ok := <-timeout:
+					Expect(ok).To(BeFalse())
+				}
+			})
+
+			It("send when eventCh full", func() {
+				var jetCache = cache.(*jetCache)
+				if !jetCache.isSyncLocal() {
+					return
+				}
+
+				var buf = new(bytes.Buffer)
+				logger.SetDefaultLogger(&testLogger{})
+				log.SetOutput(buf)
+
+				for i := 0; i < testEventChSize+1; i++ {
+					jetCache.send(EventTypeSet, key)
+				}
+				Expect(buf.String()).To(ContainSubstring("reach max send buffer"))
+			})
+
+			It("send wend eventCh closed", func() {
+				var jetCache = cache.(*jetCache)
+				if !jetCache.isSyncLocal() {
+					return
+				}
+
+				var buf = new(bytes.Buffer)
+				logger.SetDefaultLogger(&testLogger{})
+				log.SetOutput(buf)
+
+				close(jetCache.eventCh)
+				jetCache.send(EventTypeSet, key)
+				Expect(buf.String()).To(ContainSubstring("send syncEvent error(send on closed channel)"))
+			})
+		})
 	}
 
 	BeforeEach(func() {
@@ -671,6 +822,21 @@ var _ = Describe("Cache", func() {
 			testCache()
 		})
 	}
+
+	Context("with sync local", func() {
+		BeforeEach(func() {
+			rdb = newRdb()
+			cache = newBoth(rdb, freeCache, true)
+			cacheT = NewT[int, *object](cache)
+		})
+
+		testCache()
+
+		AfterEach(func() {
+			_ = rdb.Close()
+			cache.Close()
+		})
+	})
 })
 
 func newRdb() *redis.Client {
@@ -700,12 +866,14 @@ func newRemote(rds *redis.Client) Cache {
 		WithStopRefreshAfterLastAccess(stopRefreshAfterLastAccess))
 }
 
-func newBoth(rds *redis.Client, localType localType) Cache {
+func newBoth(rds *redis.Client, localType localType, syncLocal ...bool) Cache {
 	return New(WithName("both"),
 		WithRemote(remote.NewGoRedisV8Adaptor(rds)),
 		WithLocal(localNew(localType)),
 		WithErrNotFound(errTestNotFound),
 		WithRefreshDuration(refreshDuration),
+		WithSyncLocal(len(syncLocal) > 0 && syncLocal[0]),
+		WithEventChBufSize(testEventChSize),
 		WithStopRefreshAfterLastAccess(stopRefreshAfterLastAccess))
 }
 
@@ -792,4 +960,22 @@ func (m mockGoRedisMGetMSetErrAdapter) MSet(ctx context.Context, value map[strin
 
 func (m mockGoRedisMGetMSetErrAdapter) Nil() error {
 	panic("implement me")
+}
+
+type testLogger struct{}
+
+func (l *testLogger) Debug(format string, v ...any) {
+	log.Println(fmt.Sprintf(format, v...))
+}
+
+func (l *testLogger) Info(format string, v ...any) {
+	log.Println(fmt.Sprintf(format, v...))
+}
+
+func (l *testLogger) Warn(format string, v ...any) {
+	log.Println(fmt.Sprintf(format, v...))
+}
+
+func (l *testLogger) Error(format string, v ...any) {
+	log.Println(fmt.Sprintf(format, v...))
 }

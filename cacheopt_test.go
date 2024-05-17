@@ -20,6 +20,10 @@ func TestCacheOptions(t *testing.T) {
 		assert.Equal(t, defaultRefreshConcurrency, o.refreshConcurrency)
 		assert.Equal(t, defaultCodec, o.codec)
 		assert.NotNil(t, o.statsHandler)
+		assert.Equal(t, defaultRandSourceIdLen, len(o.sourceID))
+		assert.False(t, o.syncLocal)
+		assert.Equal(t, defaultEventChBufSize, o.eventChBufSize)
+		assert.Nil(t, o.eventHandler)
 	})
 
 	t.Run("with name", func(t *testing.T) {
@@ -75,5 +79,27 @@ func TestCacheOptions(t *testing.T) {
 	t.Run("with stats disabled", func(t *testing.T) {
 		o := newOptions(WithStatsDisabled(true))
 		assert.Equal(t, true, o.statsDisabled)
+	})
+
+	t.Run("with source id", func(t *testing.T) {
+		sourceId := "12345678"
+		o := newOptions(WithSourceId(sourceId))
+		assert.Equal(t, sourceId, o.sourceID)
+	})
+
+	t.Run("with sync local", func(t *testing.T) {
+		o := newOptions(WithSyncLocal(true))
+		assert.True(t, o.syncLocal)
+	})
+
+	t.Run("with event chan buffer size", func(t *testing.T) {
+		o := newOptions(WithEventChBufSize(10))
+		assert.Equal(t, o.eventChBufSize, 10)
+	})
+
+	t.Run("with event handler", func(t *testing.T) {
+		o := newOptions(WithEventHandler(func(event *Event) {
+		}))
+		assert.NotNil(t, o.eventHandler)
 	})
 }
