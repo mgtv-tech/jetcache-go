@@ -10,7 +10,7 @@ import (
 
 	"github.com/go-redis/redis/v8"
 
-	cache "github.com/mgtv-tech/jetcache-go"
+	"github.com/mgtv-tech/jetcache-go"
 	"github.com/mgtv-tech/jetcache-go/local"
 	"github.com/mgtv-tech/jetcache-go/remote"
 	"github.com/mgtv-tech/jetcache-go/util"
@@ -92,7 +92,7 @@ func Example_advancedUsage() {
 		panic(err)
 	}
 	fmt.Println(obj)
-	//Output: &{mystring 42}
+	// Output: &{mystring 42}
 
 	mycache.Close()
 }
@@ -125,7 +125,7 @@ func Example_mGetUsage() {
 		b.WriteString(fmt.Sprintf("%v", ret[id]))
 	}
 	fmt.Println(b.String())
-	//Output: &{mystring 1}&{mystring 2}<nil>
+	// Output: &{mystring 1}&{mystring 2}<nil>
 
 	cacheT.Close()
 }
