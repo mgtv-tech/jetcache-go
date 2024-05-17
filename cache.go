@@ -513,11 +513,8 @@ func (c *jetCache) externalLoad(ctx context.Context, task *refreshTask, now time
 }
 
 func (c *jetCache) load(ctx context.Context, task *refreshTask) {
-	_, ok, err := c.set(newItemOptions(ctx, task.key, TTL(task.ttl), Do(task.do), SetXX(task.setXX),
+	_, _, err := c.set(newItemOptions(ctx, task.key, TTL(task.ttl), Do(task.do), SetXX(task.setXX),
 		SetNX(task.setNX), SkipLocal(task.skipLocal)))
-	if ok {
-		c.send(EventTypeSetByRefresh, task.key)
-	}
 	if err != nil {
 		logger.Error("load#c.Set(%s) error(%v)", task.key, err)
 	}
