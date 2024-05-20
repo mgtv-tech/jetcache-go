@@ -197,12 +197,9 @@ func Example_syncLocalUsage() {
 
 	go func() {
 		for {
-			msg, err := pubSub.ReceiveMessage(context.Background())
-			if err != nil {
-				panic(err)
-			}
+			msg := <-pubSub.Channel()
 			var event *cache.Event
-			if err = json.Unmarshal([]byte(msg.Payload), &event); err != nil {
+			if err := json.Unmarshal([]byte(msg.Payload), &event); err != nil {
 				panic(err)
 			}
 			fmt.Println(event.Keys)
