@@ -15,6 +15,14 @@ func TestRandSafe_Int63n(t *testing.T) {
 	}
 }
 
+func TestSafeRand_RandN(t *testing.T) {
+	rand := NewSafeRand()
+	assert.True(t, len(rand.RandN(8)) > 0)
+
+	const size = 10
+	assert.True(t, len(rand.RandN(size)) == size)
+}
+
 func BenchmarkInt63ThreadSafe(b *testing.B) {
 	rand := NewSafeRand()
 	for n := b.N; n > 0; n-- {

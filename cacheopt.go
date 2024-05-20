@@ -7,6 +7,7 @@ import (
 	"github.com/mgtv-tech/jetcache-go/local"
 	"github.com/mgtv-tech/jetcache-go/remote"
 	"github.com/mgtv-tech/jetcache-go/stats"
+	"github.com/mgtv-tech/jetcache-go/util"
 )
 
 const (
@@ -15,29 +16,52 @@ const (
 	defaultRemoteExpiry       = time.Hour
 	defaultNotFoundExpiry     = time.Minute
 	defaultCodec              = msgpack.Name
+	defaultRandSourceIdLen    = 16
+	defaultEventChBufSize     = 100
 	maxOffset                 = 10 * time.Second
+)
+
+const (
+	EventTypeSet          EventType = 1
+	EventTypeSetByOnce    EventType = 2
+	EventTypeSetByRefresh EventType = 3
+	EventTypeSetByMGet    EventType = 4
+	EventTypeDelete       EventType = 5
 )
 
 type (
 	// Options are used to store cache options.
 	Options struct {
-		name                       string        // Cache name, used for log identification and metric reporting
-		remote                     remote.Remote // Remote is distributed cache, such as Redis.
-		local                      local.Local   // Local is memory cache, such as FreeCache.
-		codec                      string        // Value encoding and decoding method. Default is "msgpack.Name". You can also customize it.
-		errNotFound                error         // Error to return for cache miss. Used to prevent cache penetration.
-		remoteExpiry               time.Duration // Remote cache ttl, Default is 1 hour.
-		notFoundExpiry             time.Duration // Duration for placeholder cache when there is a cache miss. Default is 1 minute.
-		offset                     time.Duration // Expiration time jitter factor for cache misses.
-		refreshDuration            time.Duration // Interval for asynchronous cache refresh. Default is 0 (refresh is disabled).
-		stopRefreshAfterLastAccess time.Duration // Duration for cache to stop refreshing after no access. Default is refreshDuration + 1 second.
-		refreshConcurrency         int           // Maximum number of concurrent cache refreshes. Default is 4.
-		statsDisabled              bool          // Flag to disable cache statistics.
-		statsHandler               stats.Handler // Metrics statsHandler collector.
+		name                       string             // Cache name, used for log identification and metric reporting
+		remote                     remote.Remote      // Remote is distributed cache, such as Redis.
+		local                      local.Local        // Local is memory cache, such as FreeCache.
+		codec                      string             // Value encoding and decoding method. Default is "msgpack.Name". You can also customize it.
+		errNotFound                error              // Error to return for cache miss. Used to prevent cache penetration.
+		remoteExpiry               time.Duration      // Remote cache ttl, Default is 1 hour.
+		notFoundExpiry             time.Duration      // Duration for placeholder cache when there is a cache miss. Default is 1 minute.
+		offset                     time.Duration      // Expiration time jitter factor for cache misses.
+		refreshDuration            time.Duration      // Interval for asynchronous cache refresh. Default is 0 (refresh is disabled).
+		stopRefreshAfterLastAccess time.Duration      // Duration for cache to stop refreshing after no access. Default is refreshDuration + 1 second.
+		refreshConcurrency         int                // Maximum number of concurrent cache refreshes. Default is 4.
+		statsDisabled              bool               // Flag to disable cache statistics.
+		statsHandler               stats.Handler      // Metrics statsHandler collector.
+		sourceID                   string             // Unique identifier for cache instance.
+		syncLocal                  bool               // Enable events for syncing local cache (only for "Both" cache type).
+		eventChBufSize             int                // Buffer size for event channel (default: 100).
+		eventHandler               func(event *Event) // Function to handle local cache invalidation events.
 	}
 
 	// Option defines the method to customize an Options.
 	Option func(o *Options)
+
+	EventType int
+
+	Event struct {
+		CacheName string
+		SourceID  string
+		EventType EventType
+		Keys      []string
+	}
 )
 
 func newOptions(opts ...Option) Options {
@@ -72,7 +96,12 @@ func newOptions(opts ...Option) Options {
 	if o.statsHandler == nil {
 		o.statsHandler = stats.NewHandles(o.statsDisabled, stats.NewStatsLogger(o.name))
 	}
-
+	if o.sourceID == "" {
+		o.sourceID = util.NewSafeRand().RandN(defaultRandSourceIdLen)
+	}
+	if o.eventChBufSize <= 0 {
+		o.eventChBufSize = defaultEventChBufSize
+	}
 	return o
 }
 
@@ -151,5 +180,29 @@ func WithStatsHandler(handler stats.Handler) Option {
 func WithStatsDisabled(statsDisabled bool) Option {
 	return func(o *Options) {
 		o.statsDisabled = statsDisabled
+	}
+}
+
+func WithSourceId(sourceId string) Option {
+	return func(o *Options) {
+		o.sourceID = sourceId
+	}
+}
+
+func WithSyncLocal(syncLocal bool) Option {
+	return func(o *Options) {
+		o.syncLocal = syncLocal
+	}
+}
+
+func WithEventChBufSize(eventChBufSize int) Option {
+	return func(o *Options) {
+		o.eventChBufSize = eventChBufSize
+	}
+}
+
+func WithEventHandler(eventHandler func(event *Event)) Option {
+	return func(o *Options) {
+		o.eventHandler = eventHandler
 	}
 }

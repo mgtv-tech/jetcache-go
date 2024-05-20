@@ -76,6 +76,14 @@ func (w *T[K, V]) MGet(ctx context.Context, key string, ids []K, fn func(context
 						logger.Warn("MGet#remote.MSet error(%v)", err)
 					}
 				}
+				if c.isSyncLocal() {
+					cacheKeys := make([]string, 0, len(missIds))
+					for _, missId := range missIds {
+						cacheKey := util.JoinAny(":", key, missId)
+						cacheKeys = append(cacheKeys, cacheKey)
+					}
+					c.send(EventTypeSetByMGet, cacheKeys...)
+				}
 			}
 		}
 	}

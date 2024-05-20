@@ -67,6 +67,7 @@ type (
 		group          singleflight.Group
 		safeRand       *util.SafeRand
 		refreshTaskMap sync.Map
+		eventCh        chan *Event
 		stopChan       chan struct{}
 	}
 )
@@ -76,20 +77,27 @@ func New(opts ...Option) Cache {
 	cache := &jetCache{
 		Options:  o,
 		safeRand: util.NewSafeRand(),
+		eventCh:  make(chan *Event, o.eventChBufSize),
 		stopChan: make(chan struct{}),
 	}
 
 	if cache.refreshDuration > 0 {
-		go util.WithRecover(func() {
-			cache.tick()
-		})
+		cache.tick()
+	}
+
+	if cache.isSyncLocal() {
+		cache.startEventHandler()
 	}
 
 	return cache
 }
 
 func (c *jetCache) Set(ctx context.Context, key string, opts ...ItemOption) error {
-	_, _, err := c.set(newItemOptions(ctx, key, opts...))
+	_, ok, err := c.set(newItemOptions(ctx, key, opts...))
+	if ok {
+		c.send(EventTypeSet, key)
+	}
+
 	return err
 }
 
@@ -264,8 +272,10 @@ func (c *jetCache) getSetItemBytesOnce(item *item) (b []byte, cached bool, err e
 
 		b, ok, err := c.set(item)
 		if ok {
+			c.send(EventTypeSetByOnce, item.key)
 			return b, nil
 		}
+
 		return nil, err
 	})
 
@@ -289,6 +299,9 @@ func (c *jetCache) Delete(ctx context.Context, key string) error {
 	}
 
 	_, err := c.remote.Del(ctx, key)
+	if err == nil {
+		c.send(EventTypeDelete, key)
+	}
 
 	return err
 }
@@ -404,48 +417,50 @@ func (c *jetCache) stopRefresh() {
 }
 
 func (c *jetCache) tick() {
-	var (
-		ticker = time.NewTicker(c.refreshDuration)
-		sem    = semaphore.NewWeighted(int64(c.refreshConcurrency))
-	)
-	for {
-		select {
-		case <-ticker.C:
-			c.Lock()
-			// now is placed outside the Range to ensure that stopRefreshAfterLastAccess
-			// does not time out under concurrent queuing.
-			var now = time.Now()
-			c.refreshTaskMap.Range(func(key, val any) bool {
-				task := val.(*refreshTask)
-				if c.stopRefreshAfterLastAccess > 0 {
-					if task.lastAccessTime.Add(c.stopRefreshAfterLastAccess).Before(now) {
-						logger.Debug("cancel refresh key: %s", key)
-						c.cancel(key)
-					} else {
-						if err := sem.Acquire(context.Background(), 1); err != nil {
-							logger.Error("tick#sem.Acquire error(%v)", err)
-							return true
-						}
-
-						go util.WithRecover(func() {
-							defer sem.Release(1)
-
-							logger.Debug("start refresh key: %s", key)
-							if c.remote != nil {
-								c.externalLoad(context.Background(), task, now)
-								return
+	go util.WithRecover(func() {
+		var (
+			ticker = time.NewTicker(c.refreshDuration)
+			sem    = semaphore.NewWeighted(int64(c.refreshConcurrency))
+		)
+		for {
+			select {
+			case <-ticker.C:
+				c.Lock()
+				// now is placed outside the Range to ensure that stopRefreshAfterLastAccess
+				// does not time out under concurrent queuing.
+				var now = time.Now()
+				c.refreshTaskMap.Range(func(key, val any) bool {
+					task := val.(*refreshTask)
+					if c.stopRefreshAfterLastAccess > 0 {
+						if task.lastAccessTime.Add(c.stopRefreshAfterLastAccess).Before(now) {
+							logger.Debug("cancel refresh key: %s", key)
+							c.cancel(key)
+						} else {
+							if err := sem.Acquire(context.Background(), 1); err != nil {
+								logger.Error("tick#sem.Acquire error(%v)", err)
+								return true
 							}
-							c.load(context.Background(), task)
-						})
+
+							go util.WithRecover(func() {
+								defer sem.Release(1)
+
+								logger.Debug("start refresh key: %s", key)
+								if c.remote != nil {
+									c.externalLoad(context.Background(), task, now)
+									return
+								}
+								c.load(context.Background(), task)
+							})
+						}
 					}
-				}
-				return true
-			})
-			c.Unlock()
-		case <-c.stopChan:
-			return
+					return true
+				})
+				c.Unlock()
+			case <-c.stopChan:
+				return
+			}
 		}
-	}
+	})
 }
 
 func (c *jetCache) externalLoad(ctx context.Context, task *refreshTask, now time.Time) {
@@ -474,8 +489,12 @@ func (c *jetCache) externalLoad(ctx context.Context, task *refreshTask, now time
 		return
 	}
 	if ok {
-		if err = c.Set(ctx, task.key, TTL(task.ttl), Do(task.do), SetXX(task.setXX),
-			SetNX(task.setNX), SkipLocal(task.skipLocal)); err != nil {
+		_, ok, err := c.set(newItemOptions(ctx, task.key, TTL(task.ttl), Do(task.do), SetXX(task.setXX),
+			SetNX(task.setNX), SkipLocal(task.skipLocal)))
+		if ok {
+			c.send(EventTypeSetByRefresh, task.key)
+		}
+		if err != nil {
 			logger.Error("externalLoad#c.Set(%s) error(%v)", task.key, err)
 			return
 		}
@@ -494,8 +513,9 @@ func (c *jetCache) externalLoad(ctx context.Context, task *refreshTask, now time
 }
 
 func (c *jetCache) load(ctx context.Context, task *refreshTask) {
-	if err := c.Set(ctx, task.key, TTL(task.ttl), Do(task.do), SetXX(task.setXX),
-		SetNX(task.setNX), SkipLocal(task.skipLocal)); err != nil {
+	_, _, err := c.set(newItemOptions(ctx, task.key, TTL(task.ttl), Do(task.do), SetXX(task.setXX),
+		SetNX(task.setNX), SkipLocal(task.skipLocal)))
+	if err != nil {
 		logger.Error("load#c.Set(%s) error(%v)", task.key, err)
 	}
 }
@@ -507,4 +527,55 @@ func (c *jetCache) refreshLocal(ctx context.Context, task *refreshTask) {
 		return
 	}
 	c.local.Set(task.key, util.Bytes(val))
+}
+
+// isSyncLocal is
+func (c *jetCache) isSyncLocal() bool {
+	return c.syncLocal && c.CacheType() == TypeBoth
+}
+
+func (c *jetCache) send(eventType EventType, keys ...string) {
+	if !c.isSyncLocal() {
+		return
+	}
+
+	defer func() {
+		// recover the panic caused by close eventCh
+		if err := recover(); err != nil {
+			logger.Error("send syncEvent error(%v)", err)
+		}
+	}()
+	select {
+	case c.eventCh <- &Event{
+		CacheName: c.name,
+		SourceID:  c.sourceID,
+		EventType: eventType,
+		Keys:      keys,
+	}:
+	default:
+		logger.Warn("reach max send buffer(%d)", len(c.eventCh))
+	}
+}
+
+func (c *jetCache) startEventHandler() {
+	if c.eventHandler == nil {
+		logger.Warn("cache[%s].syncLocal is true, but eventHandler is nil", c.name)
+		return
+	}
+
+	go util.WithRecover(func() {
+		for {
+			select {
+			case e, ok := <-c.eventCh:
+				if !ok {
+					continue
+				}
+				util.WithRecover(func() {
+					c.eventHandler(e)
+				})
+			case <-c.stopChan:
+				return
+			}
+		}
+	})
 }
