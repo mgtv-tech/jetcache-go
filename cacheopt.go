@@ -25,8 +25,8 @@ const (
 	EventTypeSet          EventType = 1
 	EventTypeSetByOnce    EventType = 2
 	EventTypeSetByRefresh EventType = 3
-	EventTypeDelete       EventType = 4
-	EventTypeMGet         EventType = 5
+	EventTypeSetByMGet    EventType = 4
+	EventTypeDelete       EventType = 5
 )
 
 type (

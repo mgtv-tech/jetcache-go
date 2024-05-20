@@ -82,7 +82,7 @@ func (w *T[K, V]) MGet(ctx context.Context, key string, ids []K, fn func(context
 						cacheKey := util.JoinAny(":", key, missId)
 						cacheKeys = append(cacheKeys, cacheKey)
 					}
-					c.send(EventTypeMGet, cacheKeys...)
+					c.send(EventTypeSetByMGet, cacheKeys...)
 				}
 			}
 		}

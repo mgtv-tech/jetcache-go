@@ -679,7 +679,7 @@ var _ = Describe("Cache", func() {
 				e, ok := <-jetCache.eventCh
 				Expect(ok).To(BeTrue())
 				Expect(len(e.Keys)).To(Equal(3))
-				Expect(e.EventType).To(Equal(EventTypeMGet))
+				Expect(e.EventType).To(Equal(EventTypeSetByMGet))
 
 				_ = cacheT.MGet(context.Background(), "key", ids,
 					func(ctx context.Context, ints []int) (map[int]*object, error) {
