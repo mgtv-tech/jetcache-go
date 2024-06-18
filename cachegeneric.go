@@ -3,18 +3,22 @@ package cache
 import (
 	"bytes"
 	"context"
+	"fmt"
+	"sort"
+
+	"golang.org/x/exp/constraints"
 
 	"github.com/mgtv-tech/jetcache-go/logger"
 	"github.com/mgtv-tech/jetcache-go/util"
 )
 
 // T wrap Cache to support golang's generics
-type T[K comparable, V any] struct {
+type T[K constraints.Ordered, V any] struct {
 	Cache
 }
 
 // NewT new a T
-func NewT[K comparable, V any](cache Cache) *T[K, V] {
+func NewT[K constraints.Ordered, V any](cache Cache) *T[K, V] {
 	return &T[K, V]{cache}
 }
 
@@ -26,64 +30,75 @@ func (w *T[K, V]) MGet(ctx context.Context, key string, ids []K, fn func(context
 	values, missIds := w.mGetCache(ctx, key, ids)
 
 	if len(missIds) > 0 && fn != nil {
-		c.statsHandler.IncrQuery()
+		sort.Slice(missIds, func(i, j int) bool {
+			return missIds[i] < missIds[j]
+		})
+		v, err, _ := c.group.Do(fmt.Sprintf("%v", missIds), func() (interface{}, error) {
+			c.statsHandler.IncrQuery()
+			v, err := fn(ctx, missIds)
+			if err != nil {
+				c.statsHandler.IncrQueryFail(err)
+			}
+			return v, err
+		})
 
-		fnValues, err := fn(ctx, missIds)
 		if err != nil {
-			c.statsHandler.IncrQueryFail(err)
-		} else {
-			placeholderValues := make(map[string]any, len(ids))
-			cacheValues := make(map[string]any, len(ids))
-			for rk, rv := range fnValues {
-				values[rk] = rv
-				cacheKey := util.JoinAny(":", key, rk)
-				if b, err := c.Marshal(rv); err != nil {
-					placeholderValues[cacheKey] = notFoundPlaceholder
-					logger.Warn("MGet#w.Marshal(%v) error(%v)", rv, err)
-				} else {
-					cacheValues[cacheKey] = b
+			return values
+		}
+
+		fnValues := v.(map[K]V)
+
+		placeholderValues := make(map[string]any, len(ids))
+		cacheValues := make(map[string]any, len(ids))
+		for rk, rv := range fnValues {
+			values[rk] = rv
+			cacheKey := util.JoinAny(":", key, rk)
+			if b, err := c.Marshal(rv); err != nil {
+				placeholderValues[cacheKey] = notFoundPlaceholder
+				logger.Warn("MGet#w.Marshal(%v) error(%v)", rv, err)
+			} else {
+				cacheValues[cacheKey] = b
+			}
+		}
+
+		for _, missId := range missIds {
+			if _, ok := values[missId]; !ok {
+				cacheKey := util.JoinAny(":", key, missId)
+				placeholderValues[cacheKey] = notFoundPlaceholder
+			}
+		}
+
+		if c.local != nil {
+			if len(placeholderValues) > 0 {
+				for key, value := range placeholderValues {
+					c.local.Set(key, value.([]byte))
 				}
 			}
+			if len(cacheValues) > 0 {
+				for key, value := range cacheValues {
+					c.local.Set(key, value.([]byte))
+				}
+			}
+		}
 
-			for _, missId := range missIds {
-				if _, ok := values[missId]; !ok {
+		if c.remote != nil {
+			if len(placeholderValues) > 0 {
+				if err = c.remote.MSet(ctx, placeholderValues, c.notFoundExpiry); err != nil {
+					logger.Warn("MGet#remote.MSet error(%v)", err)
+				}
+			}
+			if len(cacheValues) > 0 {
+				if err = c.remote.MSet(ctx, cacheValues, c.remoteExpiry); err != nil {
+					logger.Warn("MGet#remote.MSet error(%v)", err)
+				}
+			}
+			if c.isSyncLocal() {
+				cacheKeys := make([]string, 0, len(missIds))
+				for _, missId := range missIds {
 					cacheKey := util.JoinAny(":", key, missId)
-					placeholderValues[cacheKey] = notFoundPlaceholder
+					cacheKeys = append(cacheKeys, cacheKey)
 				}
-			}
-
-			if c.local != nil {
-				if len(placeholderValues) > 0 {
-					for key, value := range placeholderValues {
-						c.local.Set(key, value.([]byte))
-					}
-				}
-				if len(cacheValues) > 0 {
-					for key, value := range cacheValues {
-						c.local.Set(key, value.([]byte))
-					}
-				}
-			}
-
-			if c.remote != nil {
-				if len(placeholderValues) > 0 {
-					if err = c.remote.MSet(ctx, placeholderValues, c.notFoundExpiry); err != nil {
-						logger.Warn("MGet#remote.MSet error(%v)", err)
-					}
-				}
-				if len(cacheValues) > 0 {
-					if err = c.remote.MSet(ctx, cacheValues, c.remoteExpiry); err != nil {
-						logger.Warn("MGet#remote.MSet error(%v)", err)
-					}
-				}
-				if c.isSyncLocal() {
-					cacheKeys := make([]string, 0, len(missIds))
-					for _, missId := range missIds {
-						cacheKey := util.JoinAny(":", key, missId)
-						cacheKeys = append(cacheKeys, cacheKey)
-					}
-					c.send(EventTypeSetByMGet, cacheKeys...)
-				}
+				c.send(EventTypeSetByMGet, cacheKeys...)
 			}
 		}
 	}
