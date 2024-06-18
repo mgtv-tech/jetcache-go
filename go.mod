@@ -13,7 +13,8 @@ require (
 	github.com/stretchr/testify v1.8.2
 	github.com/vmihailenco/go-tinylfu v0.2.2
 	github.com/vmihailenco/msgpack/v5 v5.3.5
-	golang.org/x/sync v0.3.0
+	golang.org/x/exp v0.0.0-20240613232115-7f521ea00fb8
+	golang.org/x/sync v0.7.0
 )
 
 require (
