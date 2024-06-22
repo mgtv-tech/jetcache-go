@@ -55,19 +55,19 @@ func (w *T[K, V]) MGet(ctx context.Context, key string, ids []K, fn func(context
 	})
 
 	v, err, _ := c.group.Do(fmt.Sprintf("%v", missIds), func() (interface{}, error) {
-		var m map[K]V
+		var ret map[K]V
 		if c.remote != nil {
-			m = w.mGetRemote(ctx, miss)
+			ret = w.mGetRemote(ctx, miss)
 			if len(miss) == 0 {
-				return m, nil
+				return ret, nil
 			}
 		}
 
 		if fn != nil {
-			m = util.MergeMap(m, w.mQueryAndSetCache(ctx, miss, fn))
+			ret = util.MergeMap(ret, w.mQueryAndSetCache(ctx, miss, fn))
 		}
 
-		return m, nil
+		return ret, nil
 	})
 
 	if err != nil {
@@ -97,6 +97,9 @@ func (w *T[K, V]) mGetLocal(miss map[string]K) map[K]V {
 			}
 		} else {
 			c.statsHandler.IncrLocalMiss()
+			if c.remote == nil {
+				c.statsHandler.IncrMiss()
+			}
 		}
 	}
 
@@ -137,6 +140,7 @@ func (w *T[K, V]) mGetRemote(ctx context.Context, miss map[string]K) map[K]V {
 				}
 			}
 		} else {
+			c.statsHandler.IncrMiss()
 			c.statsHandler.IncrRemoteMiss()
 		}
 	}
@@ -160,8 +164,8 @@ func (w *T[K, V]) mQueryAndSetCache(ctx context.Context, miss map[string]K, fn f
 	}
 
 	result := make(map[K]V, len(fnValues))
-	placeholderValues := make(map[string]any, len(miss))
 	cacheValues := make(map[string]any, len(miss))
+	placeholderValues := make(map[string]any, len(miss))
 	for missKey, missId := range miss {
 		if val, ok := fnValues[missId]; ok {
 			result[missId] = val
@@ -177,26 +181,26 @@ func (w *T[K, V]) mQueryAndSetCache(ctx context.Context, miss map[string]K, fn f
 	}
 
 	if c.local != nil {
-		if len(placeholderValues) > 0 {
-			for key, value := range placeholderValues {
+		if len(cacheValues) > 0 {
+			for key, value := range cacheValues {
 				c.local.Set(key, value.([]byte))
 			}
 		}
-		if len(cacheValues) > 0 {
-			for key, value := range cacheValues {
+		if len(placeholderValues) > 0 {
+			for key, value := range placeholderValues {
 				c.local.Set(key, value.([]byte))
 			}
 		}
 	}
 
 	if c.remote != nil {
-		if len(placeholderValues) > 0 {
-			if err = c.remote.MSet(ctx, placeholderValues, c.notFoundExpiry); err != nil {
+		if len(cacheValues) > 0 {
+			if err = c.remote.MSet(ctx, cacheValues, c.remoteExpiry); err != nil {
 				logger.Warn("mQueryAndSetCache#remote.MSet error(%v)", err)
 			}
 		}
-		if len(cacheValues) > 0 {
-			if err = c.remote.MSet(ctx, cacheValues, c.remoteExpiry); err != nil {
+		if len(placeholderValues) > 0 {
+			if err = c.remote.MSet(ctx, placeholderValues, c.notFoundExpiry); err != nil {
 				logger.Warn("mQueryAndSetCache#remote.MSet error(%v)", err)
 			}
 		}
