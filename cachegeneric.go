@@ -129,9 +129,6 @@ func (w *T[K, V]) mGetCache(ctx context.Context, key string, ids []K) (v map[K]V
 			} else {
 				miss[cacheKey] = id
 				c.statsHandler.IncrLocalMiss()
-				if c.remote != nil {
-					c.statsHandler.IncrMiss()
-				}
 			}
 		} else {
 			miss[cacheKey] = id
@@ -163,7 +160,6 @@ func (w *T[K, V]) mGetCache(ctx context.Context, key string, ids []K) (v map[K]V
 						}
 					}
 				} else {
-					c.statsHandler.IncrMiss()
 					c.statsHandler.IncrRemoteMiss()
 				}
 			}
