@@ -54,7 +54,7 @@ func (w *T[K, V]) MGet(ctx context.Context, key string, ids []K, fn func(context
 		return missIds[i] < missIds[j]
 	})
 
-	v, err, _ := c.group.Do(fmt.Sprintf("%v", missIds), func() (interface{}, error) {
+	v, err, _ := c.group.Do(fmt.Sprintf("%s:%v", key, missIds), func() (interface{}, error) {
 		var ret map[K]V
 		if c.remote != nil {
 			ret = w.mGetRemote(ctx, miss)
