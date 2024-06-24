@@ -58,6 +58,9 @@ func (w *T[K, V]) MGet(ctx context.Context, key string, ids []K, fn func(context
 		var ret map[K]V
 		if c.local != nil {
 			ret = w.mGetLocal(miss, false)
+			if len(miss) == 0 {
+				return ret, nil
+			}
 		}
 
 		if c.remote != nil {
