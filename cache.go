@@ -185,10 +185,6 @@ func (c *jetCache) getBytes(ctx context.Context, key string, skipLocal bool) ([]
 		c.statsHandler.IncrLocalMiss()
 	}
 
-	return c.getBytesSkipLocal(ctx, key, skipLocal)
-}
-
-func (c *jetCache) getBytesSkipLocal(ctx context.Context, key string, skipLocal bool) ([]byte, error) {
 	if c.remote == nil {
 		if c.local == nil {
 			return nil, ErrRemoteLocalBothNil
@@ -262,11 +258,10 @@ func (c *jetCache) getSetItemBytesOnce(item *item) (b []byte, cached bool, err e
 			}
 			return b, true, nil
 		}
-		c.statsHandler.IncrLocalMiss()
 	}
 
 	v, err, _ := c.group.Do(item.key, func() (any, error) {
-		b, err := c.getBytesSkipLocal(item.Context(), item.key, item.skipLocal)
+		b, err := c.getBytes(item.Context(), item.key, item.skipLocal)
 		if err == nil {
 			cached = true
 			return b, nil
