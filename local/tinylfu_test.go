@@ -32,6 +32,22 @@ func TestNewTinyLFU(t *testing.T) {
 	assert.Equal(t, []byte(nil), val)
 }
 
+// fix: https://github.com/go-redis/cache/issues/105
+func TestTinyLFU_SetAndGet(t *testing.T) {
+	lfu := NewTinyLFU(100, time.Second)
+	lfu.Set("a", []byte("a"))
+	lfu.Set("a", []byte("b"))
+	lfu.Set("a", []byte("c"))
+	value, ok := lfu.Get("a")
+
+	if !ok {
+		t.Errorf("expected=true got=false")
+	}
+	if string(value) != "c" {
+		t.Errorf("expected=c got=%s", value)
+	}
+}
+
 func TestTinyLFUGetCorruptionOnExpiry(t *testing.T) {
 	strFor := func(i int) string {
 		return fmt.Sprintf("a string %d", i)

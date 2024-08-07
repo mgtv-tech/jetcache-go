@@ -14,7 +14,7 @@ Translations: [English](README_en.md) | [简体中文](README.md)
 - ✅ 二级缓存自由组合：本地缓存、分布式缓存、本地缓存+分布式缓存
 - ✅ `Once`接口采用单飞(`singleflight`)模式，高并发且线程安全
 - ✅ 默认采用[MsgPack](https://github.com/vmihailenco/msgpack)来编解码Value。可选[sonic](https://github.com/bytedance/sonic)、原生`json`
-- ✅ 本地缓存默认实现了[TinyLFU](https://github.com/dgryski/go-tinylfu)和[FreeCache](https://github.com/coocood/freecache)
+- ✅ 本地缓存默认实现了[Ristretto](https://github.com/dgraph-io/ristretto)和[FreeCache](https://github.com/coocood/freecache)
 - ✅ 分布式缓存默认实现了[go-redis/v8](https://github.com/redis/go-redis)的适配器，你也可以自定义实现
 - ✅ 可以自定义`errNotFound`，通过占位符替换，缓存空结果防止缓存穿透
 - ✅ 支持开启分布式缓存异步刷新
