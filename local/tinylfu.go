@@ -2,18 +2,21 @@ package local
 
 import (
 	"math/rand"
-	"sync"
 	"time"
 
-	"github.com/vmihailenco/go-tinylfu"
+	"github.com/dgraph-io/ristretto"
+)
+
+const (
+	numCounters = 1e7 // number of keys to track frequency of (10M).
+	bufferItems = 64  // number of keys per Get buffer.
 )
 
 var _ Local = (*TinyLFU)(nil)
 
 type TinyLFU struct {
-	mu     sync.Mutex
 	rand   *rand.Rand
-	lfu    *tinylfu.T
+	cache  *ristretto.Cache
 	ttl    time.Duration
 	offset time.Duration
 }
@@ -26,9 +29,18 @@ func NewTinyLFU(size int, ttl time.Duration) *TinyLFU {
 		offset = maxOffset
 	}
 
+	cache, err := ristretto.NewCache(&ristretto.Config{
+		NumCounters: numCounters,
+		MaxCost:     int64(size),
+		BufferItems: bufferItems,
+	})
+	if err != nil {
+		panic(err)
+	}
+
 	return &TinyLFU{
 		rand:   rand.New(rand.NewSource(time.Now().UnixNano())),
-		lfu:    tinylfu.New(size, 100000),
+		cache:  cache,
 		ttl:    ttl,
 		offset: offset,
 	}
@@ -39,26 +51,19 @@ func (c *TinyLFU) UseRandomizedTTL(offset time.Duration) {
 }
 
 func (c *TinyLFU) Set(key string, b []byte) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
 	ttl := c.ttl
 	if c.offset > 0 {
 		ttl += time.Duration(c.rand.Int63n(int64(c.offset)))
 	}
 
-	c.lfu.Set(&tinylfu.Item{
-		Key:      key,
-		Value:    b,
-		ExpireAt: time.Now().Add(ttl),
-	})
+	c.cache.SetWithTTL(key, b, 1, ttl)
+
+	// wait for value to pass through buffers
+	c.cache.Wait()
 }
 
 func (c *TinyLFU) Get(key string) ([]byte, bool) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
-	val, ok := c.lfu.Get(key)
+	val, ok := c.cache.Get(key)
 	if !ok {
 		return nil, false
 	}
@@ -68,8 +73,5 @@ func (c *TinyLFU) Get(key string) ([]byte, bool) {
 }
 
 func (c *TinyLFU) Del(key string) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
-	c.lfu.Del(key)
+	c.cache.Del(key)
 }
