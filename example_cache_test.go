@@ -112,9 +112,10 @@ func Example_mGetUsage() {
 	cacheT := cache.NewT[int, *object](mycache)
 
 	ctx := context.TODO()
+	key := "mget"
 	ids := []int{1, 2, 3}
 
-	ret := cacheT.MGet(ctx, "mget", ids, func(ctx context.Context, ids []int) (map[int]*object, error) {
+	ret := cacheT.MGet(ctx, key, ids, func(ctx context.Context, ids []int) (map[int]*object, error) {
 		return mockDBMGetObject(ids)
 	})
 
