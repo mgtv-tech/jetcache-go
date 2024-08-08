@@ -192,7 +192,7 @@ func BenchmarkMGetWithStats(b *testing.B) {
 	b.ResetTimer()
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
-			mycache.MGet(context.TODO(), "mget", ids, func(ctx context.Context, ids []int) (map[int]*object, error) {
+			mycache.MGet(context.TODO(), "key", ids, func(ctx context.Context, ids []int) (map[int]*object, error) {
 				return mockDBMGetObject(ids)
 			})
 		}

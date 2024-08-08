@@ -77,7 +77,6 @@ var _ = Describe("Cache", func() {
 		obj   *object
 		rdb   *redis.Client
 		cache Cache
-		// cacheT *T[int, *object]
 	)
 
 	testCache := func() {
