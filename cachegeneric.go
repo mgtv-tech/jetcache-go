@@ -22,15 +22,48 @@ func NewT[K constraints.Ordered, V any](cache Cache) *T[K, V] {
 	return &T[K, V]{cache}
 }
 
-// MGet efficiently fetches multiple values associated with a specific key prefix and a list of IDs in a single call.
-// It prioritizes retrieving data from the cache and falls back to a user-provided function (`fn`) if values are missing.
-// Asynchronous refresh is not supported.
+// Set sets the value `v` associated with the given `key` and `id` in the cache.
+// The expiration time of the cached value is determined by the cache configuration.
+func (w *T[K, V]) Set(ctx context.Context, key string, id K, v V) error {
+	c := w.Cache.(*jetCache)
+
+	combKey := fmt.Sprintf("%s:%v", key, id)
+	return c.Set(ctx, combKey, Value(v))
+}
+
+// Get retrieves the value associated with the given `key` and `id`.
+//
+// It first attempts to fetch the value from the cache. If a cache miss occurs, it calls the provided
+// `fn` function to fetch the value and stores it in the cache with an expiration time
+// determined by the cache configuration.
+//
+// A `Once` mechanism is employed to ensure only one fetch is performed for a given `key` and `id`
+// combination, even under concurrent access.
+func (w *T[K, V]) Get(ctx context.Context, key string, id K, fn func(context.Context, K) (V, error)) (V, error) {
+	c := w.Cache.(*jetCache)
+
+	var varT V
+	combKey := fmt.Sprintf("%s:%v", key, id)
+	err := c.Once(ctx, combKey, Value(&varT), Do(func(ctx context.Context) (any, error) {
+		return fn(ctx, id)
+	}))
+
+	return varT, err
+}
+
+// MGet efficiently retrieves multiple values associated with the given `key` and `ids`.
+//
+// It attempts to fetch all values from the cache. For missing values, it calls the provided
+// `fn` function to fetch the remaining values and updates the cache with an expiration time
+// determined by the cache configuration.
+//
+// The results are returned as a map where the key is the `id` and the value is the corresponding data.
 func (w *T[K, V]) MGet(ctx context.Context, key string, ids []K, fn func(context.Context, []K) (map[K]V, error)) (result map[K]V) {
 	c := w.Cache.(*jetCache)
 
 	miss := make(map[string]K, len(ids))
 	for _, missId := range ids {
-		missKey := util.JoinAny(":", key, missId)
+		missKey := fmt.Sprintf("%s:%v", key, missId)
 		miss[missKey] = missId
 	}
 
@@ -54,7 +87,8 @@ func (w *T[K, V]) MGet(ctx context.Context, key string, ids []K, fn func(context
 		return missIds[i] < missIds[j]
 	})
 
-	v, err, _ := c.group.Do(fmt.Sprintf("%s:%v", key, missIds), func() (interface{}, error) {
+	combKey := fmt.Sprintf("%s:%v", key, missIds)
+	v, err, _ := c.group.Do(combKey, func() (interface{}, error) {
 		var ret map[K]V
 		if c.local != nil {
 			ret = w.mGetLocal(miss, false)
