@@ -2,6 +2,7 @@ package local
 
 import (
 	"errors"
+	"fmt"
 	"sync"
 	"time"
 
@@ -100,5 +101,5 @@ func (c *FreeCache) Key(key string) string {
 		return key
 	}
 
-	return util.JoinAny(":", c.innerKeyPrefix, key)
+	return fmt.Sprintf("%s:%s", c.innerKeyPrefix, key)
 }

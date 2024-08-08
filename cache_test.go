@@ -22,7 +22,6 @@ import (
 	"github.com/mgtv-tech/jetcache-go/local"
 	"github.com/mgtv-tech/jetcache-go/logger"
 	"github.com/mgtv-tech/jetcache-go/remote"
-	"github.com/mgtv-tech/jetcache-go/util"
 )
 
 var (
@@ -75,10 +74,9 @@ var _ = Describe("Cache", func() {
 
 	const key = "mykey"
 	var (
-		obj    *object
-		rdb    *redis.Client
-		cache  Cache
-		cacheT *T[int, *object]
+		obj   *object
+		rdb   *redis.Client
+		cache Cache
 	)
 
 	testCache := func() {
@@ -205,15 +203,24 @@ var _ = Describe("Cache", func() {
 			Expect(n).To(Equal(int64(124)))
 		})
 
-		Describe("MGet func", func() {
+		Describe("Generic Set/Get/MGet func", func() {
 			It("cache hit with set first", func() {
-				err := cache.Set(context.Background(), "key:1", Value(&object{Str: "str1", Num: 1}))
+				cacheT := NewT[int, *object](cache)
+
+				err := cacheT.Set(context.Background(), "key", 1, &object{Str: "str1", Num: 1})
 				Expect(err).NotTo(HaveOccurred())
 				Expect(cache.Exists(ctx, "key:1")).To(BeTrue())
 
-				err = cache.Set(context.Background(), "key:2", Value(&object{Str: "str2", Num: 2}))
+				val, err := cacheT.Get(ctx, "key", 2, func(ctx context.Context, i int) (*object, error) {
+					return &object{Str: "str2", Num: 2}, nil
+				})
 				Expect(err).NotTo(HaveOccurred())
+				Expect(val).To(Equal(&object{Str: "str2", Num: 2}))
 				Expect(cache.Exists(ctx, "key:2")).To(BeTrue())
+
+				val, err = cacheT.Get(ctx, "key", 1, nil)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(val).To(Equal(&object{Str: "str1", Num: 1}))
 
 				ids := []int{1, 2}
 				ret := cacheT.MGet(context.Background(), "key", ids, nil)
@@ -221,6 +228,7 @@ var _ = Describe("Cache", func() {
 			})
 
 			It("cache hit with fn", func() {
+				cacheT := NewT[int, *object](cache)
 				ids := []int{1, 2, 3}
 				ret := cacheT.MGet(context.Background(), "key", ids,
 					func(ctx context.Context, ints []int) (map[int]*object, error) {
@@ -230,6 +238,8 @@ var _ = Describe("Cache", func() {
 			})
 
 			It("cache hit with fn load error", func() {
+				cacheT := NewT[int, *object](cache)
+
 				err := cache.Set(context.Background(), "key:1", Value(&object{Str: "str1", Num: 1}))
 				Expect(err).NotTo(HaveOccurred())
 				Expect(cache.Exists(ctx, "key:1")).To(BeTrue())
@@ -240,9 +250,17 @@ var _ = Describe("Cache", func() {
 						return nil, errors.New("any")
 					})
 				Expect(ret).To(Equal(map[int]*object{1: {Str: "str1", Num: 1}}))
+
+				val, err := cacheT.Get(ctx, "key", 3, func(ctx context.Context, id int) (*object, error) {
+					return nil, errors.New("any")
+				})
+				Expect(err).To(MatchError("any"))
+				Expect(val).To(BeNil())
 			})
 
 			It("cache miss", func() {
+				cacheT := NewT[int, *object](cache)
+
 				ids := []int{1, 2}
 				ret := cacheT.MGet(context.Background(), "key", ids,
 					func(ctx context.Context, ints []int) (map[int]*object, error) {
@@ -256,6 +274,7 @@ var _ = Describe("Cache", func() {
 					codecErrCache := New(WithName("codecErr"),
 						WithRemote(remote.NewGoRedisV8Adaptor(rdb)),
 						WithCodec(mockUnmarshalErr))
+					cacheT := NewT[int, *object](codecErrCache)
 
 					err := codecErrCache.Set(context.Background(), "key:1", Value("value1"))
 					Expect(err).NotTo(HaveOccurred())
@@ -439,7 +458,7 @@ var _ = Describe("Cache", func() {
 		Describe("Once func with refresh", func() {
 			It("refresh ok", func() {
 				var (
-					key       = util.JoinAny(":", cache.CacheType(), "K1")
+					key       = fmt.Sprintf("%s:%s", cache.CacheType(), "K1")
 					callCount int64
 					value     string
 					err       error
@@ -469,7 +488,7 @@ var _ = Describe("Cache", func() {
 
 			It("refresh err", func() {
 				var (
-					key       = util.JoinAny(":", cache.CacheType(), "K1")
+					key       = fmt.Sprintf("%s:%s", cache.CacheType(), "K1")
 					callCount int64
 					value     string
 					err       error
@@ -500,7 +519,7 @@ var _ = Describe("Cache", func() {
 				}
 				var (
 					jetCache = cache.(*jetCache)
-					key      = util.JoinAny(":", cache.CacheType(), "K1")
+					key      = fmt.Sprintf("%s:%s", cache.CacheType(), "K1")
 					value    string
 					err      error
 				)
@@ -527,7 +546,7 @@ var _ = Describe("Cache", func() {
 				var (
 					callCount int64
 					jetCache  = cache.(*jetCache)
-					key       = util.JoinAny(":", cache.CacheType(), "K1")
+					key       = fmt.Sprintf("%s:%s", cache.CacheType(), "K1")
 					doFunc    = func(context.Context) (any, error) {
 						if atomic.AddInt64(&callCount, 1) == 1 {
 							return "V1", nil
@@ -563,7 +582,7 @@ var _ = Describe("Cache", func() {
 
 				var (
 					jetCache = cache.(*jetCache)
-					key      = util.JoinAny(":", cache.CacheType(), "K1")
+					key      = fmt.Sprintf("%s:%s", cache.CacheType(), "K1")
 					lockKey  = fmt.Sprintf("%s%s", key, lockKeySuffix)
 					doFunc   = func(context.Context) (any, error) {
 						return "V1", nil
@@ -599,7 +618,7 @@ var _ = Describe("Cache", func() {
 				var jetCache = cache.(*jetCache)
 				Expect(jetCache.TaskSize()).To(Equal(0))
 
-				key := util.JoinAny(":", cache.CacheType(), "K1")
+				key := fmt.Sprintf("%s:%s", cache.CacheType(), "K1")
 				now := time.Now()
 				item := &item{
 					key: key,
@@ -669,6 +688,7 @@ var _ = Describe("Cache", func() {
 				if !jetCache.isSyncLocal() {
 					return
 				}
+				cacheT := NewT[int, *object](cache)
 
 				ids := []int{1, 2, 3}
 				_ = cacheT.MGet(context.Background(), "key", ids,
@@ -790,7 +810,6 @@ var _ = Describe("Cache", func() {
 		BeforeEach(func() {
 			rdb = newRdb()
 			cache = newRemote(rdb)
-			cacheT = NewT[int, *object](cache)
 		})
 
 		testCache()
@@ -806,7 +825,6 @@ var _ = Describe("Cache", func() {
 			BeforeEach(func() {
 				rdb = newRdb()
 				cache = newBoth(rdb, typ)
-				cacheT = NewT[int, *object](cache)
 			})
 
 			testCache()
@@ -816,7 +834,6 @@ var _ = Describe("Cache", func() {
 			BeforeEach(func() {
 				rdb = nil
 				cache = newLocal(typ)
-				cacheT = NewT[int, *object](cache)
 			})
 
 			testCache()
@@ -827,7 +844,6 @@ var _ = Describe("Cache", func() {
 		BeforeEach(func() {
 			rdb = newRdb()
 			cache = newBoth(rdb, freeCache, true)
-			cacheT = NewT[int, *object](cache)
 		})
 
 		testCache()
