@@ -5,7 +5,7 @@ import (
 	"errors"
 	"time"
 
-	"github.com/go-redis/redis/v8"
+	"github.com/redis/go-redis/v9"
 )
 
 var _ Remote = (*GoRedisV8Adaptor)(nil)
@@ -22,7 +22,7 @@ func NewGoRedisV8Adaptor(client redis.Cmdable) Remote {
 }
 
 func (r *GoRedisV8Adaptor) SetEX(ctx context.Context, key string, value any, expire time.Duration) error {
-	return r.client.SetEX(ctx, key, value, expire).Err()
+	return r.client.SetEx(ctx, key, value, expire).Err()
 }
 
 func (r *GoRedisV8Adaptor) SetNX(ctx context.Context, key string, value any, expire time.Duration) (val bool, err error) {
@@ -72,7 +72,7 @@ func (r *GoRedisV8Adaptor) MSet(ctx context.Context, value map[string]any, expir
 	pipeline := r.client.Pipeline()
 
 	for key, val := range value {
-		pipeline.SetEX(ctx, key, val, expire)
+		pipeline.SetEx(ctx, key, val, expire)
 	}
 	_, err := pipeline.Exec(ctx)
 

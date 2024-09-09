@@ -14,14 +14,13 @@ import (
 	"time"
 
 	"github.com/alicebob/miniredis/v2"
-	"github.com/go-redis/redis/v8"
-	. "github.com/onsi/ginkgo"
-	. "github.com/onsi/gomega"
-
 	"github.com/mgtv-tech/jetcache-go/encoding"
 	"github.com/mgtv-tech/jetcache-go/local"
 	"github.com/mgtv-tech/jetcache-go/logger"
 	"github.com/mgtv-tech/jetcache-go/remote"
+	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/gomega"
+	"github.com/redis/go-redis/v9"
 )
 
 var (
@@ -530,7 +529,7 @@ var _ = Describe("Cache", func() {
 				Expect(err).NotTo(HaveOccurred())
 				Expect(value).To(Equal("V1"))
 
-				_, err = rdb.SetEX(ctx, key, "V2", time.Minute).Result()
+				_, err = rdb.SetEx(ctx, key, "V2", time.Minute).Result()
 				Expect(err).NotTo(HaveOccurred())
 				jetCache.refreshLocal(ctx, &refreshTask{key: key})
 
@@ -567,7 +566,7 @@ var _ = Describe("Cache", func() {
 				Expect(value).To(Equal("V2"))
 
 				// shouldLoad SetNX false, must refreshLocal
-				_, err = rdb.SetEX(ctx, key, "V3", time.Minute).Result()
+				_, err = rdb.SetEx(ctx, key, "V3", time.Minute).Result()
 				Expect(err).NotTo(HaveOccurred())
 				jetCache.externalLoad(ctx, &refreshTask{key: key, do: doFunc, ttl: time.Minute}, time.Now())
 				b, ok := jetCache.local.Get(key)
@@ -602,7 +601,7 @@ var _ = Describe("Cache", func() {
 				Expect(ok).To(BeTrue())
 				Expect(string(b)).To(Equal("V1"))
 
-				_, err = rdb.SetEX(ctx, key, "V2", time.Minute).Result()
+				_, err = rdb.SetEx(ctx, key, "V2", time.Minute).Result()
 				b, ok = jetCache.local.Get(key)
 				Expect(ok).To(BeTrue())
 				Expect(string(b)).To(Equal("V1"))
