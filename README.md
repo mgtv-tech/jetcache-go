@@ -83,7 +83,7 @@ func Example_basicUsage() {
 	})
 
 	mycache := cache.New(cache.WithName("any"),
-		cache.WithRemote(remote.NewGoRedisV8Adaptor(ring)),
+		cache.WithRemote(remote.NewGoRedisV9Adaptor(ring)),
 		cache.WithLocal(local.NewFreeCache(256*local.MB, time.Minute)),
 		cache.WithErrNotFound(errRecordNotFound))
 
@@ -111,7 +111,7 @@ func Example_advancedUsage() {
 	})
 
 	mycache := cache.New(cache.WithName("any"),
-		cache.WithRemote(remote.NewGoRedisV8Adaptor(ring)),
+		cache.WithRemote(remote.NewGoRedisV9Adaptor(ring)),
 		cache.WithLocal(local.NewFreeCache(256*local.MB, time.Minute)),
 		cache.WithErrNotFound(errRecordNotFound),
 		cache.WithRefreshDuration(time.Minute))
@@ -139,7 +139,7 @@ func Example_mGetUsage() {
 	})
 
 	mycache := cache.New(cache.WithName("any"),
-		cache.WithRemote(remote.NewGoRedisV8Adaptor(ring)),
+		cache.WithRemote(remote.NewGoRedisV9Adaptor(ring)),
 		cache.WithLocal(local.NewFreeCache(256*local.MB, time.Minute)),
 		cache.WithErrNotFound(errRecordNotFound),
 		cache.WithRemoteExpiry(time.Minute),
@@ -176,7 +176,7 @@ func Example_syncLocalUsage() {
 	pubSub := ring.Subscribe(context.Background(), channelName)
 
 	mycache := cache.New(cache.WithName("any"),
-		cache.WithRemote(remote.NewGoRedisV8Adaptor(ring)),
+		cache.WithRemote(remote.NewGoRedisV9Adaptor(ring)),
 		cache.WithLocal(local.NewFreeCache(256*local.MB, time.Minute)),
 		cache.WithErrNotFound(errRecordNotFound),
 		cache.WithRemoteExpiry(time.Minute),
@@ -294,7 +294,7 @@ mycache := cache.New(cache.WithName("any"),
 // `Once` interface starts automatic refresh by `cache.Refresh(true)`
 err := mycache.Once(ctx, key, cache.Value(obj), cache.Refresh(true), cache.Do(func(ctx context.Context) (any, error) {
     return mockDBGetObject(1)
-}))
+})) 
 ```
 
 ## MGet Batch Query
@@ -327,3 +327,22 @@ ret := mycache.MGet(ctx, key, ids, func(ctx context.Context, ids []int) (map[int
 ```go
  _ "github.com/mgtv-tech/jetcache-go/encoding/sonic"
 ```
+
+# Plugin
+
+Plugin Project: [jetcache-go-plugin](https://github.com/mgtv-tech/jetcache-go-plugin), Welcome to contribute to this project.
+
+# Contributing
+
+Everyone is welcome to help improve jetcache-go. If you have any questions, suggestions, or want to add other features, please submit an issue or PR directly.
+
+Please follow these steps to submit a PR:
+
+Clone the repository
+Create a new branch: name it feature-xxx for new features or bug-xxx for bug fixes
+Describe the changes in detail in the PR
+
+
+# Contact
+
+If you have any questions, please contact `daoshenzzg@163.com`.
