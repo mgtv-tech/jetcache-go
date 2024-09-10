@@ -14,8 +14,8 @@ type GoRedisV9Adaptor struct {
 	client redis.Cmdable
 }
 
-// NewGoRedisV8Adaptor is
-func NewGoRedisV8Adaptor(client redis.Cmdable) Remote {
+// NewGoRedisV9Adaptor is
+func NewGoRedisV9Adaptor(client redis.Cmdable) Remote {
 	return &GoRedisV9Adaptor{
 		client: client,
 	}

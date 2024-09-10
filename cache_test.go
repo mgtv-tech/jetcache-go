@@ -271,7 +271,7 @@ var _ = Describe("Cache", func() {
 			It("with skip elements that unmarshal error", func() {
 				if cache.CacheType() == TypeRemote {
 					codecErrCache := New(WithName("codecErr"),
-						WithRemote(remote.NewGoRedisV8Adaptor(rdb)),
+						WithRemote(remote.NewGoRedisV9Adaptor(rdb)),
 						WithCodec(mockUnmarshalErr))
 					cacheT := NewT[int, *object](codecErrCache)
 
@@ -301,7 +301,7 @@ var _ = Describe("Cache", func() {
 			It("with skip elements that marshal error", func() {
 				if cache.CacheType() == TypeRemote {
 					codecErrCache := New(WithName("codecErr"),
-						WithRemote(remote.NewGoRedisV8Adaptor(rdb)),
+						WithRemote(remote.NewGoRedisV9Adaptor(rdb)),
 						WithCodec(mockMarshalErr))
 					cacheT := NewT[int, *object](codecErrCache)
 					ids := []int{1, 2}
@@ -875,7 +875,7 @@ func newLocal(localType localType) Cache {
 
 func newRemote(rds *redis.Client) Cache {
 	return New(WithName("remote"),
-		WithRemote(remote.NewGoRedisV8Adaptor(rds)),
+		WithRemote(remote.NewGoRedisV9Adaptor(rds)),
 		WithErrNotFound(errTestNotFound),
 		WithRefreshDuration(refreshDuration),
 		WithStopRefreshAfterLastAccess(stopRefreshAfterLastAccess))
@@ -883,7 +883,7 @@ func newRemote(rds *redis.Client) Cache {
 
 func newBoth(rds *redis.Client, localType localType, syncLocal ...bool) Cache {
 	return New(WithName("both"),
-		WithRemote(remote.NewGoRedisV8Adaptor(rds)),
+		WithRemote(remote.NewGoRedisV9Adaptor(rds)),
 		WithLocal(localNew(localType)),
 		WithErrNotFound(errTestNotFound),
 		WithRefreshDuration(refreshDuration),

@@ -215,7 +215,7 @@ func newRefreshBoth() Cache {
 	newOnce.Do(func() {
 		name := "bench"
 		asyncCache = New(WithName(name),
-			WithRemote(remote.NewGoRedisV8Adaptor(rdb)),
+			WithRemote(remote.NewGoRedisV9Adaptor(rdb)),
 			WithLocal(local.NewFreeCache(256*local.MB, 3*time.Second)),
 			WithErrNotFound(errTestNotFound),
 			WithRefreshDuration(2*time.Second),
