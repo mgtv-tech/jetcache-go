@@ -83,7 +83,7 @@ func Example_basicUsage() {
 	})
 
 	mycache := cache.New(cache.WithName("any"),
-		cache.WithRemote(remote.NewGoRedisV9Adaptor(ring)),
+		cache.WithRemote(remote.NewGoRedisV9Adapter(ring)),
 		cache.WithLocal(local.NewFreeCache(256*local.MB, time.Minute)),
 		cache.WithErrNotFound(errRecordNotFound))
 
@@ -111,7 +111,7 @@ func Example_advancedUsage() {
 	})
 
 	mycache := cache.New(cache.WithName("any"),
-		cache.WithRemote(remote.NewGoRedisV9Adaptor(ring)),
+		cache.WithRemote(remote.NewGoRedisV9Adapter(ring)),
 		cache.WithLocal(local.NewFreeCache(256*local.MB, time.Minute)),
 		cache.WithErrNotFound(errRecordNotFound),
 		cache.WithRefreshDuration(time.Minute))
@@ -139,7 +139,7 @@ func Example_mGetUsage() {
 	})
 
 	mycache := cache.New(cache.WithName("any"),
-		cache.WithRemote(remote.NewGoRedisV9Adaptor(ring)),
+		cache.WithRemote(remote.NewGoRedisV9Adapter(ring)),
 		cache.WithLocal(local.NewFreeCache(256*local.MB, time.Minute)),
 		cache.WithErrNotFound(errRecordNotFound),
 		cache.WithRemoteExpiry(time.Minute),
@@ -176,7 +176,7 @@ func Example_syncLocalUsage() {
 	pubSub := ring.Subscribe(context.Background(), channelName)
 
 	mycache := cache.New(cache.WithName("any"),
-		cache.WithRemote(remote.NewGoRedisV9Adaptor(ring)),
+		cache.WithRemote(remote.NewGoRedisV9Adapter(ring)),
 		cache.WithLocal(local.NewFreeCache(256*local.MB, time.Minute)),
 		cache.WithErrNotFound(errRecordNotFound),
 		cache.WithRemoteExpiry(time.Minute),
