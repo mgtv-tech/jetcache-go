@@ -49,6 +49,7 @@ func TestGoRedisV9Adaptor_MSet(t *testing.T) {
 
 func TestGoRedisV9Adaptor_Del(t *testing.T) {
 	client := NewGoRedisV9Adaptor(newRdb())
+
 	err := client.SetEX(context.Background(), "key1", "value1", time.Minute)
 	assert.Nil(t, err)
 	val, err := client.Get(context.Background(), "key1")
@@ -63,6 +64,7 @@ func TestGoRedisV9Adaptor_Del(t *testing.T) {
 
 func TestGoRedisV9Adaptor_SetXxNx(t *testing.T) {
 	client := NewGoRedisV9Adaptor(newRdb())
+
 	_, err := client.SetXX(context.Background(), "key1", "value1", time.Minute)
 	assert.Nil(t, err)
 	_, err = client.Get(context.Background(), "key1")
