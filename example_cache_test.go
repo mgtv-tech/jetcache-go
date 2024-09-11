@@ -8,11 +8,10 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/go-redis/redis/v8"
-
 	"github.com/mgtv-tech/jetcache-go"
 	"github.com/mgtv-tech/jetcache-go/local"
 	"github.com/mgtv-tech/jetcache-go/remote"
+	"github.com/redis/go-redis/v9"
 )
 
 var errRecordNotFound = errors.New("mock gorm.errRecordNotFound")
@@ -48,7 +47,7 @@ func Example_basicUsage() {
 	})
 
 	mycache := cache.New(cache.WithName("any"),
-		cache.WithRemote(remote.NewGoRedisV8Adaptor(ring)),
+		cache.WithRemote(remote.NewGoRedisV9Adaptor(ring)),
 		cache.WithLocal(local.NewFreeCache(256*local.MB, time.Minute)),
 		cache.WithErrNotFound(errRecordNotFound))
 
@@ -76,7 +75,7 @@ func Example_advancedUsage() {
 	})
 
 	mycache := cache.New(cache.WithName("any"),
-		cache.WithRemote(remote.NewGoRedisV8Adaptor(ring)),
+		cache.WithRemote(remote.NewGoRedisV9Adaptor(ring)),
 		cache.WithLocal(local.NewFreeCache(256*local.MB, time.Minute)),
 		cache.WithErrNotFound(errRecordNotFound),
 		cache.WithRefreshDuration(time.Minute))
@@ -104,7 +103,7 @@ func Example_mGetUsage() {
 	})
 
 	mycache := cache.New(cache.WithName("any"),
-		cache.WithRemote(remote.NewGoRedisV8Adaptor(ring)),
+		cache.WithRemote(remote.NewGoRedisV9Adaptor(ring)),
 		cache.WithLocal(local.NewFreeCache(256*local.MB, time.Minute)),
 		cache.WithErrNotFound(errRecordNotFound),
 		cache.WithRemoteExpiry(time.Minute),
@@ -141,7 +140,7 @@ func Example_syncLocalUsage() {
 	pubSub := ring.Subscribe(context.Background(), channelName)
 
 	mycache := cache.New(cache.WithName("any"),
-		cache.WithRemote(remote.NewGoRedisV8Adaptor(ring)),
+		cache.WithRemote(remote.NewGoRedisV9Adaptor(ring)),
 		cache.WithLocal(local.NewFreeCache(256*local.MB, time.Minute)),
 		cache.WithErrNotFound(errRecordNotFound),
 		cache.WithRemoteExpiry(time.Minute),

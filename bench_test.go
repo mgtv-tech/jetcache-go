@@ -9,11 +9,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/go-redis/redis/v8"
-
 	"github.com/mgtv-tech/jetcache-go/local"
 	"github.com/mgtv-tech/jetcache-go/logger"
 	"github.com/mgtv-tech/jetcache-go/remote"
+	"github.com/redis/go-redis/v9"
 )
 
 var (
@@ -216,7 +215,7 @@ func newRefreshBoth() Cache {
 	newOnce.Do(func() {
 		name := "bench"
 		asyncCache = New(WithName(name),
-			WithRemote(remote.NewGoRedisV8Adaptor(rdb)),
+			WithRemote(remote.NewGoRedisV9Adaptor(rdb)),
 			WithLocal(local.NewFreeCache(256*local.MB, 3*time.Second)),
 			WithErrNotFound(errTestNotFound),
 			WithRefreshDuration(2*time.Second),

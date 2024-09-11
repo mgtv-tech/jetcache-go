@@ -15,7 +15,7 @@ Translations: [English](README.md) | [简体中文](README_zh.md)
 - ✅ `Once`接口采用单飞(`singleflight`)模式，高并发且线程安全
 - ✅ 默认采用[MsgPack](https://github.com/vmihailenco/msgpack)来编解码Value。可选[sonic](https://github.com/bytedance/sonic)、原生`json`
 - ✅ 本地缓存默认实现了[Ristretto](https://github.com/dgraph-io/ristretto)和[FreeCache](https://github.com/coocood/freecache)
-- ✅ 分布式缓存默认实现了[go-redis/v8](https://github.com/redis/go-redis)的适配器，你也可以自定义实现
+- ✅ 分布式缓存默认实现了[go-redis/v9](https://github.com/redis/go-redis)的适配器，你也可以自定义实现
 - ✅ 可以自定义`errNotFound`，通过占位符替换，缓存空结果防止缓存穿透
 - ✅ 支持开启分布式缓存异步刷新
 - ✅ 指标采集，默认实现了通过日志打印各级缓存的统计指标（QPM、Hit、Miss、Query、QueryFail）
@@ -42,11 +42,10 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/go-redis/redis/v8"
-
 	"github.com/mgtv-tech/jetcache-go"
 	"github.com/mgtv-tech/jetcache-go/local"
 	"github.com/mgtv-tech/jetcache-go/remote"
+	"github.com/redis/go-redis/v9"
 )
 
 var errRecordNotFound = errors.New("mock gorm.errRecordNotFound")
@@ -82,7 +81,7 @@ func Example_basicUsage() {
 	})
 
 	mycache := cache.New(cache.WithName("any"),
-		cache.WithRemote(remote.NewGoRedisV8Adaptor(ring)),
+		cache.WithRemote(remote.NewGoRedisV9Adaptor(ring)),
 		cache.WithLocal(local.NewFreeCache(256*local.MB, time.Minute)),
 		cache.WithErrNotFound(errRecordNotFound))
 
@@ -110,7 +109,7 @@ func Example_advancedUsage() {
 	})
 
 	mycache := cache.New(cache.WithName("any"),
-		cache.WithRemote(remote.NewGoRedisV8Adaptor(ring)),
+		cache.WithRemote(remote.NewGoRedisV9Adaptor(ring)),
 		cache.WithLocal(local.NewFreeCache(256*local.MB, time.Minute)),
 		cache.WithErrNotFound(errRecordNotFound),
 		cache.WithRefreshDuration(time.Minute))
@@ -138,7 +137,7 @@ func Example_mGetUsage() {
 	})
 
 	mycache := cache.New(cache.WithName("any"),
-		cache.WithRemote(remote.NewGoRedisV8Adaptor(ring)),
+		cache.WithRemote(remote.NewGoRedisV9Adaptor(ring)),
 		cache.WithLocal(local.NewFreeCache(256*local.MB, time.Minute)),
 		cache.WithErrNotFound(errRecordNotFound),
 		cache.WithRemoteExpiry(time.Minute),
@@ -175,7 +174,7 @@ func Example_syncLocalUsage() {
 	pubSub := ring.Subscribe(context.Background(), channelName)
 
 	mycache := cache.New(cache.WithName("any"),
-		cache.WithRemote(remote.NewGoRedisV8Adaptor(ring)),
+		cache.WithRemote(remote.NewGoRedisV9Adaptor(ring)),
 		cache.WithLocal(local.NewFreeCache(256*local.MB, time.Minute)),
 		cache.WithErrNotFound(errRecordNotFound),
 		cache.WithRemoteExpiry(time.Minute),
@@ -325,3 +324,22 @@ ret := cacheT.MGet(ctx, key, ids, func(ctx context.Context, ids []int) (map[int]
 ```go
  _ "github.com/mgtv-tech/jetcache-go/encoding/sonic"
 ```
+
+# 插件
+
+插件项目：[jetcache-go-plugin](https://github.com/mgtv-tech/jetcache-go-plugin)，欢迎参与共建。
+
+# 贡献
+
+欢迎大家一起来完善jetcache-go。如果您有任何疑问、建议或者想添加其他功能，请直接提交issue或者PR。
+
+请按照以下步骤来提交PR：
+
+- 克隆仓库
+- 创建一个新分支：如果是新功能分支，则命名为feature-xxx；如果是修复bug，则命名为bug-xxx
+- 在PR中详细描述更改的内容
+
+# 联系
+
+如果您有任何问题，请联系 `daoshenzzg@163.com`。
+

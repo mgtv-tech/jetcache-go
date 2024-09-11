@@ -16,7 +16,7 @@ Translate to: [简体中文](README_zh.md)
 - ✅ The `Once` interface adopts the `singleflight` pattern, which is highly concurrent and thread-safe.
 - ✅ By default, [MsgPack](https://github.com/vmihailenco/msgpack) is used for encoding and decoding values. Optional [sonic](https://github.com/bytedance/sonic) and native json.
 - ✅ The default local cache implementation includes [Ristretto](https://github.com/dgraph-io/ristretto) and [FreeCache](https://github.com/coocood/freecache).
-- ✅ The default distributed cache implementation is based on [go-redis/v8](https://github.com/redis/go-redis), and you can also customize your own implementation.
+- ✅ The default distributed cache implementation is based on [go-redis/v9](https://github.com/redis/go-redis), and you can also customize your own implementation.
 - ✅ You can customize the errNotFound error and use placeholders to prevent cache penetration by caching empty results.
 - ✅ Supports asynchronous refreshing of distributed caches.
 - ✅ Metrics collection: By default, it prints statistical metrics (QPM, Hit, Miss, Query, QueryFail) through logs.
@@ -44,11 +44,10 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/go-redis/redis/v8"
-
 	"github.com/mgtv-tech/jetcache-go"
 	"github.com/mgtv-tech/jetcache-go/local"
 	"github.com/mgtv-tech/jetcache-go/remote"
+	"github.com/redis/go-redis/v9"
 )
 
 var errRecordNotFound = errors.New("mock gorm.errRecordNotFound")
@@ -84,7 +83,7 @@ func Example_basicUsage() {
 	})
 
 	mycache := cache.New(cache.WithName("any"),
-		cache.WithRemote(remote.NewGoRedisV8Adaptor(ring)),
+		cache.WithRemote(remote.NewGoRedisV9Adaptor(ring)),
 		cache.WithLocal(local.NewFreeCache(256*local.MB, time.Minute)),
 		cache.WithErrNotFound(errRecordNotFound))
 
@@ -112,7 +111,7 @@ func Example_advancedUsage() {
 	})
 
 	mycache := cache.New(cache.WithName("any"),
-		cache.WithRemote(remote.NewGoRedisV8Adaptor(ring)),
+		cache.WithRemote(remote.NewGoRedisV9Adaptor(ring)),
 		cache.WithLocal(local.NewFreeCache(256*local.MB, time.Minute)),
 		cache.WithErrNotFound(errRecordNotFound),
 		cache.WithRefreshDuration(time.Minute))
@@ -140,7 +139,7 @@ func Example_mGetUsage() {
 	})
 
 	mycache := cache.New(cache.WithName("any"),
-		cache.WithRemote(remote.NewGoRedisV8Adaptor(ring)),
+		cache.WithRemote(remote.NewGoRedisV9Adaptor(ring)),
 		cache.WithLocal(local.NewFreeCache(256*local.MB, time.Minute)),
 		cache.WithErrNotFound(errRecordNotFound),
 		cache.WithRemoteExpiry(time.Minute),
@@ -177,7 +176,7 @@ func Example_syncLocalUsage() {
 	pubSub := ring.Subscribe(context.Background(), channelName)
 
 	mycache := cache.New(cache.WithName("any"),
-		cache.WithRemote(remote.NewGoRedisV8Adaptor(ring)),
+		cache.WithRemote(remote.NewGoRedisV9Adaptor(ring)),
 		cache.WithLocal(local.NewFreeCache(256*local.MB, time.Minute)),
 		cache.WithErrNotFound(errRecordNotFound),
 		cache.WithRemoteExpiry(time.Minute),
@@ -295,7 +294,7 @@ mycache := cache.New(cache.WithName("any"),
 // `Once` interface starts automatic refresh by `cache.Refresh(true)`
 err := mycache.Once(ctx, key, cache.Value(obj), cache.Refresh(true), cache.Do(func(ctx context.Context) (any, error) {
     return mockDBGetObject(1)
-}))
+})) 
 ```
 
 ## MGet Batch Query
@@ -328,3 +327,22 @@ ret := mycache.MGet(ctx, key, ids, func(ctx context.Context, ids []int) (map[int
 ```go
  _ "github.com/mgtv-tech/jetcache-go/encoding/sonic"
 ```
+
+# Plugin
+
+Plugin Project: [jetcache-go-plugin](https://github.com/mgtv-tech/jetcache-go-plugin), Welcome to contribute to this project.
+
+# Contributing
+
+Everyone is welcome to help improve jetcache-go. If you have any questions, suggestions, or want to add other features, please submit an issue or PR directly.
+
+Please follow these steps to submit a PR:
+
+- Clone the repository
+- Create a new branch: name it feature-xxx for new features or bug-xxx for bug fixes
+- Describe the changes in detail in the PR
+
+
+# Contact
+
+If you have any questions, please contact `daoshenzzg@163.com`.
