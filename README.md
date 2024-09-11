@@ -338,9 +338,9 @@ Everyone is welcome to help improve jetcache-go. If you have any questions, sugg
 
 Please follow these steps to submit a PR:
 
-Clone the repository
-Create a new branch: name it feature-xxx for new features or bug-xxx for bug fixes
-Describe the changes in detail in the PR
+- Clone the repository
+- Create a new branch: name it feature-xxx for new features or bug-xxx for bug fixes
+- Describe the changes in detail in the PR
 
 
 # Contact
