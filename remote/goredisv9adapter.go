@@ -8,40 +8,40 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
-var _ Remote = (*GoRedisV9Adaptor)(nil)
+var _ Remote = (*GoRedisV9Adapter)(nil)
 
-type GoRedisV9Adaptor struct {
+type GoRedisV9Adapter struct {
 	client redis.Cmdable
 }
 
-// NewGoRedisV9Adaptor is
-func NewGoRedisV9Adaptor(client redis.Cmdable) Remote {
-	return &GoRedisV9Adaptor{
+// NewGoRedisV9Adapter is
+func NewGoRedisV9Adapter(client redis.Cmdable) Remote {
+	return &GoRedisV9Adapter{
 		client: client,
 	}
 }
 
-func (r *GoRedisV9Adaptor) SetEX(ctx context.Context, key string, value any, expire time.Duration) error {
+func (r *GoRedisV9Adapter) SetEX(ctx context.Context, key string, value any, expire time.Duration) error {
 	return r.client.SetEx(ctx, key, value, expire).Err()
 }
 
-func (r *GoRedisV9Adaptor) SetNX(ctx context.Context, key string, value any, expire time.Duration) (val bool, err error) {
+func (r *GoRedisV9Adapter) SetNX(ctx context.Context, key string, value any, expire time.Duration) (val bool, err error) {
 	return r.client.SetNX(ctx, key, value, expire).Result()
 }
 
-func (r *GoRedisV9Adaptor) SetXX(ctx context.Context, key string, value any, expire time.Duration) (val bool, err error) {
+func (r *GoRedisV9Adapter) SetXX(ctx context.Context, key string, value any, expire time.Duration) (val bool, err error) {
 	return r.client.SetXX(ctx, key, value, expire).Result()
 }
 
-func (r *GoRedisV9Adaptor) Get(ctx context.Context, key string) (val string, err error) {
+func (r *GoRedisV9Adapter) Get(ctx context.Context, key string) (val string, err error) {
 	return r.client.Get(ctx, key).Result()
 }
 
-func (r *GoRedisV9Adaptor) Del(ctx context.Context, key string) (val int64, err error) {
+func (r *GoRedisV9Adapter) Del(ctx context.Context, key string) (val int64, err error) {
 	return r.client.Del(ctx, key).Result()
 }
 
-func (r *GoRedisV9Adaptor) MGet(ctx context.Context, keys ...string) (map[string]any, error) {
+func (r *GoRedisV9Adapter) MGet(ctx context.Context, keys ...string) (map[string]any, error) {
 	pipeline := r.client.Pipeline()
 	keyIdxMap := make(map[int]string, len(keys))
 	ret := make(map[string]any, len(keys))
@@ -68,7 +68,7 @@ func (r *GoRedisV9Adaptor) MGet(ctx context.Context, keys ...string) (map[string
 	return ret, nil
 }
 
-func (r *GoRedisV9Adaptor) MSet(ctx context.Context, value map[string]any, expire time.Duration) error {
+func (r *GoRedisV9Adapter) MSet(ctx context.Context, value map[string]any, expire time.Duration) error {
 	pipeline := r.client.Pipeline()
 
 	for key, val := range value {
@@ -79,6 +79,6 @@ func (r *GoRedisV9Adaptor) MSet(ctx context.Context, value map[string]any, expir
 	return err
 }
 
-func (r *GoRedisV9Adaptor) Nil() error {
+func (r *GoRedisV9Adapter) Nil() error {
 	return redis.Nil
 }
