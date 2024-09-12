@@ -57,24 +57,6 @@ type object struct {
 	Num int
 }
 
-func mockDBGetObject(id int) (*object, error) {
-	if id > 100 {
-		return nil, errRecordNotFound
-	}
-	return &object{Str: "mystring", Num: 42}, nil
-}
-
-func mockDBMGetObject(ids []int) (map[int]*object, error) {
-	ret := make(map[int]*object)
-	for _, id := range ids {
-		if id == 3 {
-			continue
-		}
-		ret[id] = &object{Str: "mystring", Num: id}
-	}
-	return ret, nil
-}
-
 func Example_basicUsage() {
 	ring := redis.NewRing(&redis.RingOptions{
 		Addrs: map[string]string{
@@ -215,6 +197,24 @@ func Example_syncLocalUsage() {
 	mycache.Close()
 	time.Sleep(time.Second)
 }
+
+func mockDBGetObject(id int) (*object, error) {
+	if id > 100 {
+		return nil, errRecordNotFound
+	}
+	return &object{Str: "mystring", Num: 42}, nil
+}
+
+func mockDBMGetObject(ids []int) (map[int]*object, error) {
+	ret := make(map[int]*object)
+	for _, id := range ids {
+		if id == 3 {
+			continue
+		}
+		ret[id] = &object{Str: "mystring", Num: id}
+	}
+	return ret, nil
+}
 ```
 
 ## Configure settings
@@ -330,7 +330,10 @@ ret := mycache.MGet(ctx, key, ids, func(ctx context.Context, ids []int) (map[int
 
 # Plugin
 
-Plugin Project: [jetcache-go-plugin](https://github.com/mgtv-tech/jetcache-go-plugin), Welcome to contribute to this project.
+Plugin Project: [jetcache-go-plugin](https://github.com/mgtv-tech/jetcache-go-plugin), Welcome to contribute to this project. Currently, the following features have been implemented:
+
+- [Remote Adapter using go-redis v8](https://github.com/mgtv-tech/jetcache-go-plugin?tab=readme-ov-file#redisgo-redis-v8)
+- [Prometheus-based Stats Handler](https://github.com/mgtv-tech/jetcache-go-plugin?tab=readme-ov-file#prometheus)
 
 # Contributing
 
