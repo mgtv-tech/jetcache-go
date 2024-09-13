@@ -7,6 +7,11 @@ import (
 )
 
 func TestMergeMap(t *testing.T) {
+	t.Run("merge nil", func(t *testing.T) {
+		actual := MergeMap[string, int]()
+		assert.Nil(t, actual)
+	})
+
 	t.Run("merge one map", func(t *testing.T) {
 		m1 := map[int]string{
 			1: "a",
