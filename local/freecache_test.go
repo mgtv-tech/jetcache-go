@@ -11,26 +11,41 @@ import (
 )
 
 func TestFreeCache(t *testing.T) {
-	cache := NewFreeCache(10*MB, time.Second)
-	assert.Equal(t, time.Second/10, cache.offset)
-	cache.UseRandomizedTTL(time.Millisecond)
-	assert.Equal(t, time.Millisecond, cache.offset)
-	assert.Equal(t, "", cache.innerKeyPrefix)
+	t.Run("Test limited ttl", func(t *testing.T) {
+		cache := NewFreeCache(10*MB, time.Millisecond)
+		assert.Equal(t, time.Second, cache.ttl)
+	})
 
-	key1 := "key1"
-	val, exists := cache.Get(key1)
-	assert.False(t, exists)
-	assert.Equal(t, []byte(nil), val)
+	t.Run("Test limited offset", func(t *testing.T) {
+		cache := NewFreeCache(200*KB, time.Hour)
+		assert.Equal(t, 10*time.Second, cache.offset)
+	})
 
-	cache.Set(key1, []byte("value1"))
-	val, exists = cache.Get(key1)
-	assert.True(t, exists)
-	assert.Equal(t, []byte("value1"), val)
+	t.Run("Test default", func(t *testing.T) {
+		cache := NewFreeCache(10*MB, time.Second)
+		assert.Equal(t, time.Second/10, cache.offset)
+		cache.UseRandomizedTTL(time.Millisecond)
+		assert.Equal(t, time.Millisecond, cache.offset)
+		assert.Equal(t, "", cache.innerKeyPrefix)
+	})
 
-	cache.Del(key1)
-	val, exists = cache.Get(key1)
-	assert.False(t, exists)
-	assert.Equal(t, []byte(nil), val)
+	t.Run("Test GET/SET/DEL ", func(t *testing.T) {
+		cache := NewFreeCache(10*MB, time.Second)
+		key1 := "key1"
+		val, exists := cache.Get(key1)
+		assert.False(t, exists)
+		assert.Equal(t, []byte(nil), val)
+
+		cache.Set(key1, []byte("value1"))
+		val, exists = cache.Get(key1)
+		assert.True(t, exists)
+		assert.Equal(t, []byte("value1"), val)
+
+		cache.Del(key1)
+		val, exists = cache.Get(key1)
+		assert.False(t, exists)
+		assert.Equal(t, []byte(nil), val)
+	})
 }
 
 func TestNewFreeCacheWithInnerKeyPrefix(t *testing.T) {

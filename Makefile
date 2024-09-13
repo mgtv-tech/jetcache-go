@@ -20,5 +20,5 @@ test:
 
 # Run test-coverage
 test-coverage:
-	@go test -cpu=4 -race -coverprofile=coverage.txt -covermode=atomic
+	@go test ./... -cpu=4 -race -coverprofile=coverage.txt -covermode=atomic
 .PHONY: test-coverage
