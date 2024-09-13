@@ -60,10 +60,41 @@ func TestLogger(t *testing.T) {
 		}
 	})
 
-	t.Run("TestLevel", func(t *testing.T) {
+	t.Run("TestLevelError", func(t *testing.T) {
 		buffer := &bytes.Buffer{}
 		testLogger := &testLogger{buffer: buffer}
 		SetDefaultLogger(testLogger)
+
+		SetLevel(LevelError)
+		Debug("debug message")
+		Info("info message")
+		Warn("warn message")
+		Error("error message")
+		if got, want := buffer.String(), "[ERROR] error message\n"; got != want {
+			t.Errorf("got %q, want %q", got, want)
+		}
+	})
+
+	t.Run("TestLevelWarn", func(t *testing.T) {
+		buffer := &bytes.Buffer{}
+		testLogger := &testLogger{buffer: buffer}
+		SetDefaultLogger(testLogger)
+
+		SetLevel(LevelWarn)
+		Debug("debug message")
+		Info("info message")
+		Warn("warn message")
+		Error("error message")
+		if got, want := buffer.String(), "[WARN] warn message\n[ERROR] error message\n"; got != want {
+			t.Errorf("got %q, want %q", got, want)
+		}
+	})
+
+	t.Run("TestLevelInfo", func(t *testing.T) {
+		buffer := &bytes.Buffer{}
+		testLogger := &testLogger{buffer: buffer}
+		SetDefaultLogger(testLogger)
+
 		SetLevel(LevelInfo)
 		Debug("debug message")
 		Info("info message")
@@ -73,6 +104,34 @@ func TestLogger(t *testing.T) {
 			t.Errorf("got %q, want %q", got, want)
 		}
 	})
+
+	t.Run("TestInvalidLevel", func(t *testing.T) {
+		defer func() {
+			if r := recover(); r == nil {
+				t.Errorf("expected panic, got nil")
+			}
+		}()
+		SetLevel(Level(-1))
+	})
+}
+
+func TestLevelString(t *testing.T) {
+	tests := []struct {
+		level Level
+		want  string
+	}{
+		{LevelDebug, "[DEBUG] "},
+		{LevelInfo, "[INFO] "},
+		{LevelWarn, "[WARN] "},
+		{LevelError, "[ERROR] "},
+	}
+	for _, tt := range tests {
+		t.Run(tt.want, func(t *testing.T) {
+			if got := tt.level.String(); got != tt.want {
+				t.Errorf("Level.String() = %v, want %v", got, tt.want)
+			}
+		})
+	}
 }
 
 func (tl *testLogger) Debug(format string, v ...any) {
