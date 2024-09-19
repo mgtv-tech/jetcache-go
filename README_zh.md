@@ -344,5 +344,5 @@ ret := cacheT.MGet(ctx, key, ids, func(ctx context.Context, ids []int) (map[int]
 
 # 联系
 
-如果您有任何问题，请联系 `daoshenzzg@163.com`。
+如果您有任何问题，请联系 `daoshenzzg@gmail.com`。
 
