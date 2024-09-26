@@ -1,8 +1,10 @@
 package stats
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
+	"log"
 	"testing"
 	"time"
 
@@ -59,6 +61,48 @@ func TestStatLogger_statLoop(t *testing.T) {
 		stat.IncrQuery()
 		time.Sleep(10 * time.Millisecond)
 	})
+}
+
+func TestStatLogger_logStatSummary(t *testing.T) {
+	var logBuffer = &bytes.Buffer{}
+	log.SetOutput(logBuffer)
+	stats := []*Stats{
+		{Name: "cache1", Hit: 10, Miss: 2, RemoteHit: 5, RemoteMiss: 1, LocalHit: 5, LocalMiss: 1, Query: 100, QueryFail: 5},
+		{Name: "cache2", Hit: 5, Miss: 0, Query: 50},
+	}
+	inner := &innerStats{
+		stats:         stats,
+		statsInterval: time.Minute,
+	}
+
+	inner.logStatSummary()
+
+	expected := `jetcache-go stats last 1m0s.
+cache        |         qpm|   hit_ratio|         hit|        miss|       query|  query_fail
+-------------+------------+------------+------------+------------+------------+------------
+cache1       |          12|      83.33%|          10|           2|         100|           5
+cache1_local |           6|      83.33%|           5|           1|           -|           -
+cache1_remote|           6|      83.33%|           5|           1|           -|           -
+cache2       |           5|     100.00%|           5|           0|          50|           0
+-------------+------------+------------+------------+------------+------------+------------`
+
+	assert.Contains(t, logBuffer.String(), expected)
+}
+
+func TestFormatHeader(t *testing.T) {
+	maxLenStr := "12"
+	expected := fmt.Sprintf("%-12s|%12s|%12s|%12s|%12s|%12s|%12s\n", "cache", "qpm", "hit_ratio", "hit", "miss", "query", "query_fail")
+	actual := formatHeader(maxLenStr)
+	if actual != expected {
+		t.Errorf("formatHeader failed. Expected: %s, Actual: %s", expected, actual)
+	}
+}
+
+func TestFormatSepLine(t *testing.T) {
+	header := "cache        |         qpm|   hit_ratio|         hit|        miss|       query| query_fail\n"
+	expected := "-------------+------------+------------+------------+------------+------------+-----------\n"
+	actual := formatSepLine(header)
+	assert.Equal(t, expected, actual)
 }
 
 func TestStatLogger_race(t *testing.T) {

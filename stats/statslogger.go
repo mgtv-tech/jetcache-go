@@ -151,12 +151,12 @@ func (inner *innerStats) logStatSummary() {
 		sb.WriteString(formatSepLine(header))
 		sb.WriteString(rows)
 		sb.WriteString(formatSepLine(header))
-		log.Println(sb.String())
+		log.Print(sb.String())
 	}
 }
 
 func formatHeader(maxLenStr string) string {
-	return fmt.Sprintf("%-"+maxLenStr+"s|%12s|%12s|%12s|%12s|%12s|%12s", "cache", "qpm", "hit_ratio", "hit", "miss", "query", "query_fail\n")
+	return fmt.Sprintf("%-"+maxLenStr+"s|%12s|%12s|%12s|%12s|%12s|%12s\n", "cache", "qpm", "hit_ratio", "hit", "miss", "query", "query_fail")
 }
 
 func formatRows(stats []Stats, maxLenStr string) string {
@@ -209,7 +209,11 @@ func formatRows(stats []Stats, maxLenStr string) string {
 
 func formatSepLine(header string) string {
 	var b bytes.Buffer
-	for _, c := range header {
+	var l = len(header)
+	for i, c := range header {
+		if i+1 == l {
+			continue
+		}
 		if c == '|' {
 			b.WriteString("+")
 		} else {
