@@ -69,6 +69,7 @@ func TestStatLogger_logStatSummary(t *testing.T) {
 	stats := []*Stats{
 		{Name: "cache1", Hit: 10, Miss: 2, RemoteHit: 5, RemoteMiss: 1, LocalHit: 5, LocalMiss: 1, Query: 100, QueryFail: 5},
 		{Name: "cache2", Hit: 5, Miss: 0, Query: 50},
+		{Name: "cache3", Hit: 0, Miss: 0, Query: 0},
 	}
 	inner := &innerStats{
 		stats:         stats,
