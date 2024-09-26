@@ -3,12 +3,13 @@ package stats
 import (
 	"bytes"
 	"fmt"
-	"log"
 	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/mgtv-tech/jetcache-go/logger"
 )
 
 const defaultStatsInterval = time.Minute
@@ -149,9 +150,10 @@ func (inner *innerStats) logStatSummary() {
 		sb.WriteString(fmt.Sprintf("jetcache-go stats last %s.\n", inner.statsInterval))
 		sb.WriteString(header)
 		sb.WriteString(formatSepLine(header))
+		sb.WriteString("\n")
 		sb.WriteString(rows)
 		sb.WriteString(formatSepLine(header))
-		log.Print(sb.String())
+		logger.Info(sb.String())
 	}
 }
 
@@ -172,7 +174,7 @@ func formatRows(stats []Stats, maxLenStr string) string {
 		rows.WriteString(fmt.Sprintf("%-"+maxLenStr+"s|", s.Name))
 		rows.WriteString(fmt.Sprintf("%12d|", total))
 		rows.WriteString(fmt.Sprintf("%11s", rate(s.Hit, total)))
-		rows.WriteString("%|")
+		rows.WriteString("%%|")
 		rows.WriteString(fmt.Sprintf("%12d|", s.Hit))
 		rows.WriteString(fmt.Sprintf("%12d|", s.Miss))
 		rows.WriteString(fmt.Sprintf("%12d|", s.Query))
@@ -183,7 +185,7 @@ func formatRows(stats []Stats, maxLenStr string) string {
 			rows.WriteString(fmt.Sprintf("%-"+maxLenStr+"s|", getName(s.Name, "local")))
 			rows.WriteString(fmt.Sprintf("%12d|", localTotal))
 			rows.WriteString(fmt.Sprintf("%11s", rate(s.LocalHit, localTotal)))
-			rows.WriteString("%|")
+			rows.WriteString("%%|")
 			rows.WriteString(fmt.Sprintf("%12d|", s.LocalHit))
 			rows.WriteString(fmt.Sprintf("%12d|", s.LocalMiss))
 			rows.WriteString(fmt.Sprintf("%12s|", "-"))
@@ -195,7 +197,7 @@ func formatRows(stats []Stats, maxLenStr string) string {
 			rows.WriteString(fmt.Sprintf("%-"+maxLenStr+"s|", getName(s.Name, "remote")))
 			rows.WriteString(fmt.Sprintf("%12d|", remoteTotal))
 			rows.WriteString(fmt.Sprintf("%11s", rate(s.RemoteHit, remoteTotal)))
-			rows.WriteString("%|")
+			rows.WriteString("%%|")
 			rows.WriteString(fmt.Sprintf("%12d|", s.RemoteHit))
 			rows.WriteString(fmt.Sprintf("%12d|", s.RemoteMiss))
 			rows.WriteString(fmt.Sprintf("%12s|", "-"))
@@ -220,7 +222,6 @@ func formatSepLine(header string) string {
 			b.WriteString("-")
 		}
 	}
-	b.WriteString("\n")
 	return b.String()
 }
 
