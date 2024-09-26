@@ -1,9 +1,11 @@
 package stats
 
 import (
+	"bytes"
 	"fmt"
 	"strconv"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -12,7 +14,11 @@ import (
 
 const defaultStatsInterval = time.Minute
 
-var _ Handler = (*Stats)(nil)
+var (
+	once  sync.Once
+	inner *innerStats
+	_     Handler = (*Stats)(nil)
+)
 
 type (
 	Stats struct {
@@ -34,6 +40,11 @@ type (
 
 	// Option defines the method to customize an Options.
 	Option func(o *Options)
+
+	innerStats struct {
+		statsInterval time.Duration
+		stats         []*Stats
+	}
 )
 
 func WithStatsInterval(statsInterval time.Duration) Option {
@@ -50,20 +61,28 @@ func NewStatsLogger(name string, opts ...Option) Handler {
 	if o.statsInterval <= 0 {
 		o.statsInterval = defaultStatsInterval
 	}
+	once.Do(func() {
+		inner = &innerStats{
+			statsInterval: o.statsInterval,
+			stats:         make([]*Stats, 0),
+		}
 
-	ret := &Stats{
+		go func() {
+			ticker := time.NewTicker(o.statsInterval)
+			defer ticker.Stop()
+
+			inner.statLoop(ticker)
+		}()
+	})
+
+	stat := &Stats{
 		Name:    name,
 		Options: o,
 	}
 
-	go func() {
-		ticker := time.NewTicker(o.statsInterval)
-		defer ticker.Stop()
+	inner.stats = append(inner.stats, stat)
 
-		ret.statLoop(ticker)
-	}()
-
-	return ret
+	return stat
 }
 
 func (s *Stats) IncrHit() {
@@ -98,95 +117,112 @@ func (s *Stats) IncrQueryFail(err error) {
 	atomic.AddUint64(&s.QueryFail, 1)
 }
 
-func (s *Stats) statLoop(ticker *time.Ticker) {
+func (inner *innerStats) statLoop(ticker *time.Ticker) {
 	for range ticker.C {
-		s.logStatSummary()
+		inner.logStatSummary()
 	}
 }
 
-func (s *Stats) logStatSummary() {
-	var (
-		hit         = atomic.SwapUint64(&s.Hit, 0)
-		miss        = atomic.SwapUint64(&s.Miss, 0)
-		remoteHit   = atomic.SwapUint64(&s.RemoteHit, 0)
-		remoteMiss  = atomic.SwapUint64(&s.RemoteMiss, 0)
-		localHit    = atomic.SwapUint64(&s.LocalHit, 0)
-		localMiss   = atomic.SwapUint64(&s.LocalMiss, 0)
-		query       = atomic.SwapUint64(&s.Query, 0)
-		queryFail   = atomic.SwapUint64(&s.QueryFail, 0)
-		total       = hit + miss
-		remoteTotal = remoteHit + remoteMiss
-		localTotal  = localHit + localMiss
-	)
-
-	if total == 0 && query == 0 && queryFail == 0 {
-		return
+func (inner *innerStats) logStatSummary() {
+	stats := make([]Stats, len(inner.stats))
+	var maxNameLen int
+	for i, s := range inner.stats {
+		stats[i] = Stats{
+			Name:       s.Name,
+			Hit:        atomic.SwapUint64(&s.Hit, 0),
+			Miss:       atomic.SwapUint64(&s.Miss, 0),
+			RemoteHit:  atomic.SwapUint64(&s.RemoteHit, 0),
+			RemoteMiss: atomic.SwapUint64(&s.RemoteMiss, 0),
+			LocalHit:   atomic.SwapUint64(&s.LocalHit, 0),
+			LocalMiss:  atomic.SwapUint64(&s.LocalMiss, 0),
+			Query:      atomic.SwapUint64(&s.Query, 0),
+			QueryFail:  atomic.SwapUint64(&s.QueryFail, 0),
+		}
+		if len(s.Name) > maxNameLen {
+			maxNameLen = len(s.Name)
+		}
 	}
-
-	var (
-		b      strings.Builder
-		length = len(s.Name) + 7
-		lenStr = strconv.Itoa(length)
-	)
-
-	b.WriteString(fmt.Sprintf("jetcache-go stats last %s.\n", s.statsInterval))
-	// -----Header start------
-	title := fmt.Sprintf("%-"+lenStr+"s|%12s|%12s|%12s|%12s|%12s|%12s", "cache", "qpm", "hit_ratio", "hit", "miss", "query", "query_fail")
-	b.WriteString(title)
-	b.WriteString("\n")
-	// -----Header end------
-
-	// -----Rows start------
-	printSepLine(&b, title)
-	// All
-	b.WriteString(fmt.Sprintf("%-"+lenStr+"s|", s.Name))
-	b.WriteString(fmt.Sprintf("%12d|", total))
-	b.WriteString(fmt.Sprintf("%11s", rate(hit, total)))
-	b.WriteString("%%|")
-	b.WriteString(fmt.Sprintf("%12d|", hit))
-	b.WriteString(fmt.Sprintf("%12d|", miss))
-	b.WriteString(fmt.Sprintf("%12d|", query))
-	b.WriteString(fmt.Sprintf("%12d|", queryFail))
-	b.WriteString("\n")
-	// Local
-	if localTotal > 0 {
-		b.WriteString(fmt.Sprintf("%-"+lenStr+"s|", getName(s.Name, "local")))
-		b.WriteString(fmt.Sprintf("%12d|", localTotal))
-		b.WriteString(fmt.Sprintf("%11s", rate(localHit, localTotal)))
-		b.WriteString("%%|")
-		b.WriteString(fmt.Sprintf("%12d|", localHit))
-		b.WriteString(fmt.Sprintf("%12d|", localMiss))
-		b.WriteString(fmt.Sprintf("%12s|", "-"))
-		b.WriteString(fmt.Sprintf("%12s|", "-"))
-		b.WriteString("\n")
+	maxLenStr := strconv.Itoa(maxNameLen + 7)
+	rows := formatRows(stats, maxLenStr)
+	if len(rows) > 0 {
+		var sb strings.Builder
+		header := formatHeader(maxLenStr)
+		sb.WriteString(fmt.Sprintf("jetcache-go stats last %s.\n", inner.statsInterval))
+		sb.WriteString(header)
+		sb.WriteString(formatSepLine(header))
+		sb.WriteString("\n")
+		sb.WriteString(rows)
+		sb.WriteString(formatSepLine(header))
+		logger.Info(sb.String())
 	}
-	// Remote
-	if remoteTotal > 0 {
-		b.WriteString(fmt.Sprintf("%-"+lenStr+"s|", getName(s.Name, "remote")))
-		b.WriteString(fmt.Sprintf("%12d|", remoteTotal))
-		b.WriteString(fmt.Sprintf("%11s", rate(remoteHit, remoteTotal)))
-		b.WriteString("%%|")
-		b.WriteString(fmt.Sprintf("%12d|", remoteHit))
-		b.WriteString(fmt.Sprintf("%12d|", remoteMiss))
-		b.WriteString(fmt.Sprintf("%12s|", "-"))
-		b.WriteString(fmt.Sprintf("%12s|", "-"))
-		b.WriteString("\n")
-	}
-	printSepLine(&b, title)
-	// -----Rows end------
-
-	logger.Info(b.String())
 }
 
-func printSepLine(b *strings.Builder, title string) {
-	for _, c := range title {
+func formatHeader(maxLenStr string) string {
+	return fmt.Sprintf("%-"+maxLenStr+"s|%12s|%12s|%12s|%12s|%12s|%12s\n", "cache", "qpm", "hit_ratio", "hit", "miss", "query", "query_fail")
+}
+
+func formatRows(stats []Stats, maxLenStr string) string {
+	var rows strings.Builder
+	for _, s := range stats {
+		total := s.Hit + s.Miss
+		remoteTotal := s.RemoteHit + s.RemoteMiss
+		localTotal := s.LocalHit + s.LocalMiss
+		if total == 0 && s.Query == 0 && s.QueryFail == 0 {
+			continue
+		}
+		// All
+		rows.WriteString(fmt.Sprintf("%-"+maxLenStr+"s|", s.Name))
+		rows.WriteString(fmt.Sprintf("%12d|", total))
+		rows.WriteString(fmt.Sprintf("%11s", rate(s.Hit, total)))
+		rows.WriteString("%%|")
+		rows.WriteString(fmt.Sprintf("%12d|", s.Hit))
+		rows.WriteString(fmt.Sprintf("%12d|", s.Miss))
+		rows.WriteString(fmt.Sprintf("%12d|", s.Query))
+		rows.WriteString(fmt.Sprintf("%12d", s.QueryFail))
+		rows.WriteString("\n")
+		// Local
+		if localTotal > 0 {
+			rows.WriteString(fmt.Sprintf("%-"+maxLenStr+"s|", getName(s.Name, "local")))
+			rows.WriteString(fmt.Sprintf("%12d|", localTotal))
+			rows.WriteString(fmt.Sprintf("%11s", rate(s.LocalHit, localTotal)))
+			rows.WriteString("%%|")
+			rows.WriteString(fmt.Sprintf("%12d|", s.LocalHit))
+			rows.WriteString(fmt.Sprintf("%12d|", s.LocalMiss))
+			rows.WriteString(fmt.Sprintf("%12s|", "-"))
+			rows.WriteString(fmt.Sprintf("%12s", "-"))
+			rows.WriteString("\n")
+		}
+		// Remote
+		if remoteTotal > 0 {
+			rows.WriteString(fmt.Sprintf("%-"+maxLenStr+"s|", getName(s.Name, "remote")))
+			rows.WriteString(fmt.Sprintf("%12d|", remoteTotal))
+			rows.WriteString(fmt.Sprintf("%11s", rate(s.RemoteHit, remoteTotal)))
+			rows.WriteString("%%|")
+			rows.WriteString(fmt.Sprintf("%12d|", s.RemoteHit))
+			rows.WriteString(fmt.Sprintf("%12d|", s.RemoteMiss))
+			rows.WriteString(fmt.Sprintf("%12s|", "-"))
+			rows.WriteString(fmt.Sprintf("%12s", "-"))
+			rows.WriteString("\n")
+		}
+	}
+
+	return rows.String()
+}
+
+func formatSepLine(header string) string {
+	var b bytes.Buffer
+	var l = len(header)
+	for i, c := range header {
+		if i+1 == l {
+			continue
+		}
 		if c == '|' {
 			b.WriteString("+")
 		} else {
 			b.WriteString("-")
 		}
 	}
-	b.WriteString("\n")
+	return b.String()
 }
 
 func rate(count, total uint64) string {
