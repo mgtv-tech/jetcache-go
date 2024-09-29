@@ -25,10 +25,8 @@ func NewT[K constraints.Ordered, V any](cache Cache) *T[K, V] {
 // Set sets the value `v` associated with the given `key` and `id` in the cache.
 // The expiration time of the cached value is determined by the cache configuration.
 func (w *T[K, V]) Set(ctx context.Context, key string, id K, v V) error {
-	c := w.Cache.(*jetCache)
-
 	combKey := fmt.Sprintf("%s:%v", key, id)
-	return c.Set(ctx, combKey, Value(v))
+	return w.Cache.Set(ctx, combKey, Value(v))
 }
 
 // Get retrieves the value associated with the given `key` and `id`.
@@ -40,11 +38,9 @@ func (w *T[K, V]) Set(ctx context.Context, key string, id K, v V) error {
 // A `Once` mechanism is employed to ensure only one fetch is performed for a given `key` and `id`
 // combination, even under concurrent access.
 func (w *T[K, V]) Get(ctx context.Context, key string, id K, fn func(context.Context, K) (V, error)) (V, error) {
-	c := w.Cache.(*jetCache)
-
 	var varT V
 	combKey := fmt.Sprintf("%s:%v", key, id)
-	err := c.Once(ctx, combKey, Value(&varT), Do(func(ctx context.Context) (any, error) {
+	err := w.Once(ctx, combKey, Value(&varT), Do(func(ctx context.Context) (any, error) {
 		return fn(ctx, id)
 	}))
 
