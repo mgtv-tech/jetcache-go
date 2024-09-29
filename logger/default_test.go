@@ -58,7 +58,6 @@ func TestLocalLogger(t *testing.T) {
 		ll := &localLogger{
 			logger: log.New(buffer, "", log.LstdFlags|log.Lshortfile|log.Lmicroseconds),
 		}
-		// 定义测试用例
 		testCases := []struct {
 			level     Level
 			format    string
@@ -71,10 +70,9 @@ func TestLocalLogger(t *testing.T) {
 			{LevelError, "error message %s", "[ERROR] error message test\n", true},
 		}
 
-		// 循环执行测试用例
 		for _, testCase := range testCases {
 			t.Run(fmt.Sprintf("Level%s", testCase.level), func(t *testing.T) {
-				buffer.Reset() // 清空缓冲区
+				buffer.Reset()
 				ll.logf(testCase.level, &testCase.format, "test")
 				if testCase.shouldLog {
 					if !strings.Contains(buffer.String(), testCase.expected) {
