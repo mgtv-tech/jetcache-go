@@ -7,7 +7,7 @@
 
 Translate to: [简体中文](README_zh.md)
 
-# Introduction
+# Overview
 [jetcache-go](https://github.com/mgtv-tech/jetcache-go) is a general-purpose cache access framework based on
 [go-redis/cache](https://github.com/go-redis/cache). It implements the core features of the Java version of
 [JetCache](https://github.com/alibaba/jetcache), including:

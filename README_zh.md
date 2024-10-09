@@ -7,7 +7,7 @@
 
 Translations: [English](README.md) | [简体中文](README_zh.md)
 
-# 介绍
+# 简介
 [jetcache-go](https://github.com/mgtv-tech/jetcache-go)是基于[go-redis/cache](https://github.com/go-redis/cache)拓展的通用缓存访问框架。
 实现了类似Java版[JetCache](https://github.com/alibaba/jetcache)的核心功能，包括：
 

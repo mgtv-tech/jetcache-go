@@ -16,7 +16,7 @@ var _ Local = (*TinyLFU)(nil)
 
 type TinyLFU struct {
 	rand   *rand.Rand
-	cache  *ristretto.Cache
+	cache  *ristretto.Cache[string, []byte]
 	ttl    time.Duration
 	offset time.Duration
 }
@@ -29,7 +29,7 @@ func NewTinyLFU(size int, ttl time.Duration) *TinyLFU {
 		offset = maxOffset
 	}
 
-	cache, err := ristretto.NewCache(&ristretto.Config{
+	cache, err := ristretto.NewCache[string, []byte](&ristretto.Config[string, []byte]{
 		NumCounters: numCounters,
 		MaxCost:     int64(size),
 		BufferItems: bufferItems,
@@ -68,8 +68,7 @@ func (c *TinyLFU) Get(key string) ([]byte, bool) {
 		return nil, false
 	}
 
-	b := val.([]byte)
-	return b, true
+	return val, true
 }
 
 func (c *TinyLFU) Del(key string) {
