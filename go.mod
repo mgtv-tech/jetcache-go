@@ -7,7 +7,7 @@ require (
 	github.com/bytedance/sonic v1.12.3
 	github.com/coocood/freecache v1.2.4
 	github.com/dgraph-io/ristretto v1.0.0
-	github.com/klauspost/compress v1.17.10
+	github.com/klauspost/compress v1.17.9
 	github.com/onsi/ginkgo v1.16.5
 	github.com/onsi/gomega v1.34.1
 	github.com/redis/go-redis/v9 v9.6.1
