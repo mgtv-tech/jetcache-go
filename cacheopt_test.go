@@ -56,6 +56,11 @@ func TestCacheOptions(t *testing.T) {
 		assert.Equal(t, maxOffset, o.offset)
 	})
 
+	t.Run("with refresh duration", func(t *testing.T) {
+		o := newOptions(WithRefreshDuration(time.Second))
+		assert.Equal(t, time.Second, o.refreshDuration)
+	})
+
 	t.Run("with refresh concurrency", func(t *testing.T) {
 		o := newOptions(WithRefreshConcurrency(16))
 		assert.Equal(t, defaultNotFoundExpiry, o.notFoundExpiry)
@@ -63,7 +68,7 @@ func TestCacheOptions(t *testing.T) {
 		assert.Equal(t, defaultCodec, o.codec)
 	})
 
-	t.Run("with mockDecode", func(t *testing.T) {
+	t.Run("with mock decode", func(t *testing.T) {
 		o := newOptions(WithCodec(json.Name))
 		assert.Equal(t, defaultNotFoundExpiry, o.notFoundExpiry)
 		assert.Equal(t, defaultRefreshConcurrency, o.refreshConcurrency)
@@ -102,4 +107,29 @@ func TestCacheOptions(t *testing.T) {
 		}))
 		assert.NotNil(t, o.eventHandler)
 	})
+}
+
+func TestCacheOptionsRefreshDuration(t *testing.T) {
+	tests := []struct {
+		input  time.Duration
+		expect time.Duration
+	}{
+		{
+			input:  0,
+			expect: 0,
+		},
+		{
+			input:  time.Millisecond,
+			expect: minEffectRefreshDuration,
+		},
+		{
+			input:  time.Minute,
+			expect: time.Minute,
+		},
+	}
+
+	for _, v := range tests {
+		o := newOptions(WithRefreshDuration(v.input))
+		assert.Equal(t, v.expect, o.refreshDuration)
+	}
 }

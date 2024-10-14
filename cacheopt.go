@@ -18,6 +18,7 @@ const (
 	defaultCodec              = msgpack.Name
 	defaultRandSourceIdLen    = 16
 	defaultEventChBufSize     = 100
+	minEffectRefreshDuration  = time.Second
 	maxOffset                 = 10 * time.Second
 )
 
@@ -89,6 +90,9 @@ func newOptions(opts ...Option) Options {
 	}
 	if o.refreshConcurrency <= 0 {
 		o.refreshConcurrency = defaultRefreshConcurrency
+	}
+	if o.refreshDuration > 0 && o.refreshDuration < minEffectRefreshDuration {
+		o.refreshDuration = minEffectRefreshDuration
 	}
 	if o.stopRefreshAfterLastAccess <= 0 {
 		o.stopRefreshAfterLastAccess = o.refreshDuration + time.Second
