@@ -481,8 +481,6 @@ var _ = Describe("Cache", func() {
 				err = cache.Get(ctx, key, &value)
 				Expect(err).NotTo(HaveOccurred())
 				Expect(value).To(Equal("V2"))
-
-				time.Sleep(2 * refreshDuration)
 			})
 
 			It("refresh err", func() {

@@ -483,7 +483,9 @@ func (c *jetCache) externalLoad(ctx context.Context, task *refreshTask, now time
 		return
 	}
 
-	ok, err := c.remote.SetNX(ctx, lockKey, strconv.FormatInt(now.Unix(), 10), c.refreshDuration)
+	// fix bug: https://github.com/mgtv-tech/jetcache-go/issues/36
+	lockTimeout := c.refreshDuration - 10*time.Millisecond
+	ok, err := c.remote.SetNX(ctx, lockKey, strconv.FormatInt(now.Unix(), 10), lockTimeout)
 	if err != nil {
 		logger.Error("externalLoad#c.remote.setNX(%s) error(%v)", lockKey, err)
 		return
