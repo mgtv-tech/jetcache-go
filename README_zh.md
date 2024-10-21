@@ -1,8 +1,12 @@
+# jetcache-go
+![banner](docs/banner.png)
+
 <p>
 <a href="https://github.com/mgtv-tech/jetcache-go/actions"><img src="https://github.com/mgtv-tech/jetcache-go/workflows/Go/badge.svg" alt="Build Status"></a>
 <a href="https://codecov.io/gh/mgtv-tech/jetcache-go"><img src="https://codecov.io/gh/mgtv-tech/jetcache-go/master/graph/badge.svg" alt="codeCov"></a>
 <a href="https://goreportcard.com/report/github.com/mgtv-tech/jetcache-go"><img src="https://goreportcard.com/badge/github.com/mgtv-tech/jetcache-go" alt="Go Repport Card"></a>
 <a href="https://github.com/mgtv-tech/jetcache-go/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-green" alt="License"></a>
+<a href="https://github.com/mgtv-tech/jetcache-go/releases"><img src="https://img.shields.io/github/release/mgtv-tech/jetcache-go" alt="Release"></a>
 </p>
 
 Translations: [English](README.md) | [简体中文](README_zh.md)
@@ -22,6 +26,19 @@ Translations: [English](README.md) | [简体中文](README_zh.md)
 - ✅ 分布式缓存查询故障自动降级
 - ✅ `MGet`接口支持`Load`函数。带分布缓存场景，采用`Pipeline`模式实现 (v1.1.0+)
 - ✅ 支持拓展缓存更新后所有GO进程的本地缓存失效 (v1.1.1+)
+
+| 特性             | eko/gocache | go-redis/cache | mgtv-tech/jetcache-go |
+|----------------|-------------|----------------|-----------------------|
+| 多级缓存           | Yes         | Yes            | Yes                   |
+| 缓存旁路(loadable) | Yes         | Yes            | Yes                   |
+| 泛型支持           | Yes         | No             | Yes                   |
+| 单飞模式           | Yes         | Yes            | Yes                   |
+| 缓存更新监听器        | No          | No             | Yes                   |
+| 自动刷新           | No          | No             | Yes                   |
+| 指标采集           | Yes         | Yes (simple)   | Yes                   |
+| 缓存空对象          | No          | No             | Yes                   |
+| 批量查询           | No          | No             | Yes                   |
+| 稀疏列表缓存         | No          | No             | Yes                   |
 
 # 安装
 使用最新版本的jetcache-go，您可以在项目中导入该库：
@@ -217,25 +234,25 @@ func mockDBMGetObject(ids []int) (map[int]*object, error) {
 
 ## 配置选项
 ```go
-// Options are used to store cache options.
-Options struct {
-    name                       string             // Cache name, used for log identification and metric reporting
-    remote                     remote.Remote      // Remote is distributed cache, such as Redis.
-    local                      local.Local        // Local is memory cache, such as FreeCache.
-    codec                      string             // Value encoding and decoding method. Default is "msgpack.Name". You can also customize it.
-    errNotFound                error              // Error to return for cache miss. Used to prevent cache penetration.
-    remoteExpiry               time.Duration      // Remote cache ttl, Default is 1 hour.
-    notFoundExpiry             time.Duration      // Duration for placeholder cache when there is a cache miss. Default is 1 minute.
-    offset                     time.Duration      // Expiration time jitter factor for cache misses.
-    refreshDuration            time.Duration      // Interval for asynchronous cache refresh. Default is 0 (refresh is disabled).
-    stopRefreshAfterLastAccess time.Duration      // Duration for cache to stop refreshing after no access. Default is refreshDuration + 1 second.
-    refreshConcurrency         int                // Maximum number of concurrent cache refreshes. Default is 4.
-    statsDisabled              bool               // Flag to disable cache statistics.
-    statsHandler               stats.Handler      // Metrics statsHandler collector.
-    sourceID                   string             // Unique identifier for cache instance.
-    syncLocal                  bool               // Enable events for syncing local cache (only for "Both" cache type).
-    eventChBufSize             int                // Buffer size for event channel (default: 100).
-    eventHandler               func(event *Event) // Function to handle local cache invalidation events.
+// Options 用于存储缓存选项。
+type Options struct {
+name                       string             // 缓存名称，用于日志标识和指标报告
+remote                     remote.Remote      // remote 是分布式缓存，例如 Redis。
+local                      local.Local        // local 是内存缓存，例如 FreeCache。
+codec                      string             // value的编码和解码方法。默认为 "msgpack.Name"。也可以自定义。
+errNotFound                error              // 缓存未命中时返回的错误。用于防止缓存穿透（即缓存空对象）。
+remoteExpiry               time.Duration      // 远程缓存 TTL，默认为 1 小时。
+notFoundExpiry             time.Duration      // 缓存未命中时占位符缓存的过期时间。默认为 1 分钟。
+offset                     time.Duration      // 缓存未命中时的过期时间抖动因子。
+refreshDuration            time.Duration      // 异步缓存刷新的间隔。默认为 0（禁用刷新）。
+stopRefreshAfterLastAccess time.Duration      // 缓存停止刷新之前的持续时间（上次访问后）。默认为 refreshDuration + 1 秒。
+refreshConcurrency         int                // 并发缓存刷新的最大数量。默认为 4。
+statsDisabled              bool               // 禁用缓存统计的标志。
+statsHandler               stats.Handler      // 指标统计收集器。
+sourceID                   string             // 缓存实例的唯一标识符。
+syncLocal                  bool               // 启用同步本地缓存的事件（仅适用于 "Both" 缓存类型）。
+eventChBufSize             int                // 事件通道的缓冲区大小（默认为 100）。
+eventHandler               func(event *Event) // 处理本地缓存失效事件的函数。
 }
 ```
 

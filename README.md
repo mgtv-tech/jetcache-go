@@ -1,8 +1,12 @@
+# jetcache-go
+![banner](docs/banner.png)
+
 <p>
 <a href="https://github.com/mgtv-tech/jetcache-go/actions"><img src="https://github.com/mgtv-tech/jetcache-go/workflows/Go/badge.svg" alt="Build Status"></a>
 <a href="https://codecov.io/gh/mgtv-tech/jetcache-go"><img src="https://codecov.io/gh/mgtv-tech/jetcache-go/master/graph/badge.svg" alt="codeCov"></a>
 <a href="https://goreportcard.com/report/github.com/mgtv-tech/jetcache-go"><img src="https://goreportcard.com/badge/github.com/mgtv-tech/jetcache-go" alt="Go Repport Card"></a>
 <a href="https://github.com/mgtv-tech/jetcache-go/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-green" alt="License"></a>
+<a href="https://github.com/mgtv-tech/jetcache-go/releases"><img src="https://img.shields.io/github/release/mgtv-tech/jetcache-go" alt="Release"></a>
 </p>
 
 Translate to: [简体中文](README_zh.md)
@@ -23,6 +27,19 @@ Translate to: [简体中文](README_zh.md)
 - ✅ Automatic degradation of distributed cache query failures.
 - ✅ The `MGet` interface supports the `Load` function. In a distributed caching scenario, the Pipeline mode is used to improve performance. (v1.1.0+)
 - ✅ Invalidate local caches (in all Go processes) after updates (v1.1.1+)
+
+| Feature                | eko/gocache | go-redis/cache | mgtv-tech/jetcache-go |
+|------------------------|-------------|----------------|-----------------------|
+| Multi-level Caching    | Yes         | Yes            | Yes                   |
+| Cache-Aside Pattern    | Yes         | Yes            | Yes                   |
+| Generics Support	      | Yes         | No             | Yes                   |
+| Singleflight Pattern   | Yes         | Yes            | Yes                   |
+| Cache Update Listener	 | No          | No             | Yes                   |
+| Auto-Refresh	          | No          | No             | Yes                   |
+| Metrics Collection	    | Yes         | Yes (simple)   | Yes                   |
+| Caching Nil Result     | No          | No             | Yes                   |
+| Batch Query            | No          | No             | Yes                   |
+| Sparse List Caching    | No          | No             | Yes                   |
 
 # Installation
 To start using the latest version of jetcache-go, you can import the library into your project:
@@ -220,7 +237,7 @@ func mockDBMGetObject(ids []int) (map[int]*object, error) {
 ## Configure settings
 ```go
 // Options are used to store cache options.
-Options struct {
+type Options struct {
     name                       string             // Cache name, used for log identification and metric reporting
     remote                     remote.Remote      // Remote is distributed cache, such as Redis.
     local                      local.Local        // Local is memory cache, such as FreeCache.
