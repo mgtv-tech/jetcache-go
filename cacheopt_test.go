@@ -24,6 +24,8 @@ func TestCacheOptions(t *testing.T) {
 		assert.False(t, o.syncLocal)
 		assert.Equal(t, defaultEventChBufSize, o.eventChBufSize)
 		assert.Nil(t, o.eventHandler)
+		assert.Equal(t, defaultSeparator, o.separator)
+		assert.Equal(t, false, o.separatorDisabled)
 	})
 
 	t.Run("with name", func(t *testing.T) {
@@ -106,6 +108,21 @@ func TestCacheOptions(t *testing.T) {
 		o := newOptions(WithEventHandler(func(event *Event) {
 		}))
 		assert.NotNil(t, o.eventHandler)
+	})
+
+	t.Run("with separator", func(t *testing.T) {
+		o := newOptions(WithSeparator(":"))
+		assert.Equal(t, defaultSeparator, o.separator)
+	})
+
+	t.Run("with disable default separator", func(t *testing.T) {
+		o := newOptions(WithSeparatorDisable(true))
+		assert.Equal(t, "", o.separator)
+	})
+
+	t.Run("with disable customized separator", func(t *testing.T) {
+		o := newOptions(WithSeparatorDisable(true), WithSeparator(":"))
+		assert.Equal(t, "", o.separator)
 	})
 }
 

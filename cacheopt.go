@@ -18,6 +18,7 @@ const (
 	defaultCodec              = msgpack.Name
 	defaultRandSourceIdLen    = 16
 	defaultEventChBufSize     = 100
+	defaultSeparator          = ":"
 	minEffectRefreshDuration  = time.Second
 	maxOffset                 = 10 * time.Second
 )
@@ -37,6 +38,8 @@ type (
 		remote                     remote.Remote      // Remote is distributed cache, such as Redis.
 		local                      local.Local        // Local is memory cache, such as FreeCache.
 		codec                      string             // Value encoding and decoding method. Default is "msgpack.Name". You can also customize it.
+		separatorDisabled          bool               // Disable separator for cache key. Default is false. If true, the cache key will not be split into multiple parts.
+		separator                  string             // Separator for cache key. Default is ":".
 		errNotFound                error              // Error to return for cache miss. Used to prevent cache penetration.
 		remoteExpiry               time.Duration      // Remote cache ttl, Default is 1 hour.
 		notFoundExpiry             time.Duration      // Duration for placeholder cache when there is a cache miss. Default is 1 minute.
@@ -105,6 +108,9 @@ func newOptions(opts ...Option) Options {
 	}
 	if o.eventChBufSize <= 0 {
 		o.eventChBufSize = defaultEventChBufSize
+	}
+	if o.separator == "" && !o.separatorDisabled {
+		o.separator = defaultSeparator
 	}
 	return o
 }
@@ -208,5 +214,19 @@ func WithEventChBufSize(eventChBufSize int) Option {
 func WithEventHandler(eventHandler func(event *Event)) Option {
 	return func(o *Options) {
 		o.eventHandler = eventHandler
+	}
+}
+
+func WithSeparatorDisable(separatorDisable bool) Option {
+	return func(o *Options) {
+		o.separatorDisabled = separatorDisable
+	}
+}
+
+func WithSeparator(separator string) Option {
+	return func(o *Options) {
+		if !o.separatorDisabled {
+			o.separator = separator
+		}
 	}
 }

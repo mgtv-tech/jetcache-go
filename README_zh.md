@@ -240,6 +240,8 @@ name                       string             // 缓存名称，用于日志标�
 remote                     remote.Remote      // remote 是分布式缓存，例如 Redis。
 local                      local.Local        // local 是内存缓存，例如 FreeCache。
 codec                      string             // value的编码和解码方法。默认为 "msgpack.Name"。也可以自定义。
+separatorDisabled          bool               // 禁用缓存键的分隔符。默认为false。如果为true，则缓存键不会使用分隔符。
+separator                  string             // 缓存键的分隔符。默认为 ":"。
 errNotFound                error              // 缓存未命中时返回的错误。用于防止缓存穿透（即缓存空对象）。
 remoteExpiry               time.Duration      // 远程缓存 TTL，默认为 1 小时。
 notFoundExpiry             time.Duration      // 缓存未命中时占位符缓存的过期时间。默认为 1 分钟。
