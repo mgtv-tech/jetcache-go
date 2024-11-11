@@ -242,6 +242,8 @@ type Options struct {
     remote                     remote.Remote      // Remote is distributed cache, such as Redis.
     local                      local.Local        // Local is memory cache, such as FreeCache.
     codec                      string             // Value encoding and decoding method. Default is "msgpack.Name". You can also customize it.
+    separatorDisable           bool               // Disable separator for cache key. Default is false. If true, the cache key will not be split into multiple parts.
+    separator                  string             // Separator for cache key. Default is ":".
     errNotFound                error              // Error to return for cache miss. Used to prevent cache penetration.
     remoteExpiry               time.Duration      // Remote cache ttl, Default is 1 hour.
     notFoundExpiry             time.Duration      // Duration for placeholder cache when there is a cache miss. Default is 1 minute.
