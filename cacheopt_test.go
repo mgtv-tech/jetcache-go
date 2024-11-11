@@ -25,7 +25,7 @@ func TestCacheOptions(t *testing.T) {
 		assert.Equal(t, defaultEventChBufSize, o.eventChBufSize)
 		assert.Nil(t, o.eventHandler)
 		assert.Equal(t, defaultSeparator, o.separator)
-		assert.Equal(t, false, o.separatorDisable)
+		assert.Equal(t, false, o.disableSeparator)
 	})
 
 	t.Run("with name", func(t *testing.T) {
