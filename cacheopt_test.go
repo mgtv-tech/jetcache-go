@@ -116,12 +116,12 @@ func TestCacheOptions(t *testing.T) {
 	})
 
 	t.Run("with disable default separator", func(t *testing.T) {
-		o := newOptions(WithSeparatorDisable(true))
+		o := newOptions(WithSeparatorDisabled(true))
 		assert.Equal(t, "", o.separator)
 	})
 
 	t.Run("with disable customized separator", func(t *testing.T) {
-		o := newOptions(WithSeparatorDisable(true), WithSeparator(":"))
+		o := newOptions(WithSeparatorDisabled(true), WithSeparator(":"))
 		assert.Equal(t, "", o.separator)
 	})
 }
