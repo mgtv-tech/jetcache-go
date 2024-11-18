@@ -217,9 +217,9 @@ func WithEventHandler(eventHandler func(event *Event)) Option {
 	}
 }
 
-func WithSeparatorDisable(separatorDisable bool) Option {
+func WithSeparatorDisabled(separatorDisabled bool) Option {
 	return func(o *Options) {
-		o.separatorDisabled = separatorDisable
+		o.separatorDisabled = separatorDisabled
 	}
 }
 
