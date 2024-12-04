@@ -1,50 +1,54 @@
-# jetcache-go
+![banner](/docs/images/banner.png)
 
-![banner](docs/images/banner.png)
+# 简介
 
-<p>
-<a href="https://github.com/mgtv-tech/jetcache-go/actions"><img src="https://github.com/mgtv-tech/jetcache-go/workflows/Go/badge.svg" alt="Build Status"></a>
-<a href="https://codecov.io/gh/mgtv-tech/jetcache-go"><img src="https://codecov.io/gh/mgtv-tech/jetcache-go/master/graph/badge.svg" alt="codeCov"></a>
-<a href="https://goreportcard.com/report/github.com/mgtv-tech/jetcache-go"><img src="https://goreportcard.com/badge/github.com/mgtv-tech/jetcache-go" alt="Go Repport Card"></a>
-<a href="https://github.com/mgtv-tech/jetcache-go/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-green" alt="License"></a>
-<a href="https://github.com/mgtv-tech/jetcache-go/releases"><img src="https://img.shields.io/github/release/mgtv-tech/jetcache-go" alt="Release"></a>
-</p>
+`jetcache-go` 是基于 [go-redis/cache](https://github.com/go-redis/cache) 拓展的通用缓存框架。实现了类似Java版[JetCache](https://github.com/alibaba/jetcache)的核心功能，包括：
 
-Translate to: [简体中文](README_zh.md)
+- ✅ 二级缓存自由组合：本地缓存、分布式缓存、本地缓存+分布式缓存
+- ✅ `Once`接口采用单飞(`singleflight`)模式，高并发且线程安全
+- ✅ 默认采用[MsgPack](https://github.com/vmihailenco/msgpack)来编解码Value。可选[sonic](https://github.com/bytedance/sonic)、原生`json`
+- ✅ 本地缓存默认实现了[Ristretto](https://github.com/dgraph-io/ristretto)和[FreeCache](https://github.com/coocood/freecache)
+- ✅ 分布式缓存默认实现了[go-redis/v9](https://github.com/redis/go-redis)的适配器，你也可以自定义实现
+- ✅ 可以自定义`errNotFound`，通过占位符替换，缓存空结果防止缓存穿透
+- ✅ 支持开启分布式缓存异步刷新
+- ✅ 指标采集，默认实现了通过日志打印各级缓存的统计指标（QPM、Hit、Miss、Query、QueryFail）
+- ✅ 分布式缓存查询故障自动降级
+- ✅ `MGet`接口支持`Load`函数。带分布缓存场景，采用`Pipeline`模式实现 (v1.1.0+)
+- ✅ 支持拓展缓存更新后所有GO进程的本地缓存失效 (v1.1.1+)
 
-# Overview
+# 产品对比
 
-[jetcache-go](https://github.com/mgtv-tech/jetcache-go) is a general-purpose cache access framework based on
-[go-redis/cache](https://github.com/go-redis/cache). It implements the core features of the Java version of
-[JetCache](https://github.com/alibaba/jetcache), including:
+| 特性             | eko/gocache | go-redis/cache | mgtv-tech/jetcache-go |
+|----------------|-------------|----------------|-----------------------|
+| 多级缓存           | Yes         | Yes            | Yes                   |
+| 缓存旁路(loadable) | Yes         | Yes            | Yes                   |
+| 泛型支持           | Yes         | No             | Yes                   |
+| 单飞模式           | Yes         | Yes            | Yes                   |
+| 缓存更新监听器        | No          | No             | Yes                   |
+| 自动刷新           | No          | No             | Yes                   |
+| 指标采集           | Yes         | Yes (simple)   | Yes                   |
+| 缓存空对象          | No          | No             | Yes                   |
+| 批量查询           | No          | No             | Yes                   |
+| 稀疏列表缓存         | No          | No             | Yes                   |
 
-- ✅ Flexible combination of two-level caching: You can use memory, Redis, or your own custom storage method.
-- ✅ The `Once` interface adopts the `singleflight` pattern, which is highly concurrent and thread-safe.
-- ✅ By default, [MsgPack](https://github.com/vmihailenco/msgpack) is used for encoding and decoding values. Optional [sonic](https://github.com/bytedance/sonic) and native json.
-- ✅ The default local cache implementation includes [Ristretto](https://github.com/dgraph-io/ristretto) and [FreeCache](https://github.com/coocood/freecache).
-- ✅ The default distributed cache implementation is based on [go-redis/v9](https://github.com/redis/go-redis), and you can also customize your own implementation.
-- ✅ You can customize the errNotFound error and use placeholders to prevent cache penetration by caching empty results.
-- ✅ Supports asynchronous refreshing of distributed caches.
-- ✅ Metrics collection: By default, it prints statistical metrics (QPM, Hit, Miss, Query, QueryFail) through logs.
-- ✅ Automatic degradation of distributed cache query failures.
-- ✅ The `MGet` interface supports the `Load` function. In a distributed caching scenario, the Pipeline mode is used to improve performance. (v1.1.0+)
-- ✅ Invalidate local caches (in all Go processes) after updates (v1.1.1+)
 
-# Learn JetCache-go
+# 文档目录
 
-Visit [documentation](/docs/EN/GettingStarted.md) for more details.
+- [快速开始](/docs/CN/GettingStarted.md)
+- [缓存 API](/docs/CN/CacheAPI.md)
+- [配置选项](/docs/CN/Config.md)
+- [内嵌组件](/docs/CN/Embedded.md)
+- [指标统计](/docs/CN/Stat.md)
+- [插件项目](/docs/CN/Plugin.md)
 
-# Installation
+# 安装
 
-To start using the latest version of jetcache-go, you can import the library into your project:
+使用最新版本的jetcache-go，您可以在项目中导入该库：
 
 ```shell
 go get github.com/mgtv-tech/jetcache-go
 ```
-
-# Getting started
-
-## Basic Usage
+# 快速开始
 
 ```go
 import (
@@ -227,18 +231,3 @@ func mockDBMGetObject(ids []int) (map[int]*object, error) {
 	return ret, nil
 }
 ```
-
-# Contributing
-
-Everyone is welcome to help improve jetcache-go. If you have any questions, suggestions, or want to add other features, please submit an issue or PR directly.
-
-Please follow these steps to submit a PR:
-
-- Clone the repository
-- Create a new branch: name it feature-xxx for new features or bug-xxx for bug fixes
-- Describe the changes in detail in the PR
-
-
-# Contact
-
-If you have any questions, please contact `daoshenzzg@gmail.com`.
