@@ -1,50 +1,62 @@
-# jetcache-go
+![banner](/docs/images/banner.png)
 
-![banner](docs/images/banner.png)
-
-<p>
-<a href="https://github.com/mgtv-tech/jetcache-go/actions"><img src="https://github.com/mgtv-tech/jetcache-go/workflows/Go/badge.svg" alt="Build Status"></a>
-<a href="https://codecov.io/gh/mgtv-tech/jetcache-go"><img src="https://codecov.io/gh/mgtv-tech/jetcache-go/master/graph/badge.svg" alt="codeCov"></a>
-<a href="https://goreportcard.com/report/github.com/mgtv-tech/jetcache-go"><img src="https://goreportcard.com/badge/github.com/mgtv-tech/jetcache-go" alt="Go Repport Card"></a>
-<a href="https://github.com/mgtv-tech/jetcache-go/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-green" alt="License"></a>
-<a href="https://github.com/mgtv-tech/jetcache-go/releases"><img src="https://img.shields.io/github/release/mgtv-tech/jetcache-go" alt="Release"></a>
-</p>
-
-Translate to: [简体中文](README_zh.md)
+<!-- TOC -->
+* [Overview](#overview)
+* [Product Comparison](#product-comparison)
+* [Installation](#installation)
+* [Quick started](#quick-started)
+<!-- TOC -->
 
 # Overview
 
-[jetcache-go](https://github.com/mgtv-tech/jetcache-go) is a general-purpose cache access framework based on
-[go-redis/cache](https://github.com/go-redis/cache). It implements the core features of the Java version of
-[JetCache](https://github.com/alibaba/jetcache), including:
+`jetcache-go` is a general-purpose caching framework built upon and extending [go-redis/cache](https://github.com/go-redis/cache). It implements core features similar to the Java version of [JetCache](https://github.com/alibaba/jetcache), including:
 
-- ✅ Flexible combination of two-level caching: You can use memory, Redis, or your own custom storage method.
-- ✅ The `Once` interface adopts the `singleflight` pattern, which is highly concurrent and thread-safe.
-- ✅ By default, [MsgPack](https://github.com/vmihailenco/msgpack) is used for encoding and decoding values. Optional [sonic](https://github.com/bytedance/sonic) and native json.
-- ✅ The default local cache implementation includes [Ristretto](https://github.com/dgraph-io/ristretto) and [FreeCache](https://github.com/coocood/freecache).
-- ✅ The default distributed cache implementation is based on [go-redis/v9](https://github.com/redis/go-redis), and you can also customize your own implementation.
-- ✅ You can customize the errNotFound error and use placeholders to prevent cache penetration by caching empty results.
-- ✅ Supports asynchronous refreshing of distributed caches.
-- ✅ Metrics collection: By default, it prints statistical metrics (QPM, Hit, Miss, Query, QueryFail) through logs.
-- ✅ Automatic degradation of distributed cache query failures.
-- ✅ The `MGet` interface supports the `Load` function. In a distributed caching scenario, the Pipeline mode is used to improve performance. (v1.1.0+)
-- ✅ Invalidate local caches (in all Go processes) after updates (v1.1.1+)
+- ✅ **Flexible Two-Level Caching:**  Supports local cache, distributed cache, and a combination of both.
+- ✅ **`Once` Interface with Singleflight:**  High concurrency and thread safety using the singleflight pattern.
+- ✅ **Multiple Encoding Options:** Defaults to [MsgPack](https://github.com/vmihailenco/msgpack) for value encoding/decoding.  [sonic](https://github.com/bytedance/sonic) and native `json` are also supported.
+- ✅ **Built-in Local Cache Implementations:**  Provides implementations using [Ristretto](https://github.com/dgraph-io/ristretto) and [FreeCache](https://github.com/coocood/freecache).
+- ✅ **Distributed Cache Adapter:**  Defaults to an adapter for [go-redis/v9](https://github.com/redis/go-redis), but custom implementations are also supported.
+- ✅ **`errNotFound` Customization:**  Prevents cache penetration by caching null results using a placeholder.
+- ✅ **Asynchronous Distributed Cache Refresh:**  Supports enabling asynchronous refresh of distributed caches.
+- ✅ **Metrics Collection:**  Provides default logging of cache statistics (QPM, Hit, Miss, Query, QueryFail).
+- ✅ **Automatic Distributed Cache Query Degradation:**  Handles failures gracefully.
+- ✅ **`MGet` Interface with `Load` Function:**  Supports pipeline mode for distributed cache scenarios (v1.1.0+).
+- ✅ **Support for Invalidating Local Caches Across All Go Processes:** After cache updates (v1.1.1+).
 
-# Learn JetCache-go
 
-Visit [documentation](/docs/EN/GettingStarted.md) for more details.
+# Product Comparison
+
+| Feature               | eko/gocache | go-redis/cache | mgtv-tech/jetcache-go |
+|-----------------------|-------------|----------------|-----------------------|
+| Multi-level Caching   | Yes         | Yes            | Yes                   |
+| Loadable Caching      | Yes         | Yes            | Yes                   |
+| Generics Support      | Yes         | No             | Yes                   |
+| Singleflight Pattern  | Yes         | Yes            | Yes                   |
+| Cache Update Listener | No          | No             | Yes                   |
+| Auto Refresh          | No          | No             | Yes                   |
+| Metrics Collection    | Yes         | Yes (simple)   | Yes                   |
+| Null Object Caching   | No          | No             | Yes                   |
+| Bulk Query            | No          | No             | Yes                   |
+| Sparse List Cache     | No          | No             | Yes                   |
+
+# Learning JetCache-go
+
+- [GettingStarted](/docs/EN/GettingStarted.md)
+- [Cache API](/docs/EN/CacheAPI.md)
+- [Config](/docs/EN/Config.md)
+- [Embedded](/docs/EN/Embedded.md)
+- [Metrics](/docs/EN/Stat.md)
+- [Plugin](/docs/EN/Plugin.md)
 
 # Installation
 
-To start using the latest version of jetcache-go, you can import the library into your project:
+To use the latest version of `jetcache-go`, import the library into your project:
 
 ```shell
 go get github.com/mgtv-tech/jetcache-go
 ```
 
-# Getting started
-
-## Basic Usage
+# Quick started
 
 ```go
 import (
@@ -227,18 +239,3 @@ func mockDBMGetObject(ids []int) (map[int]*object, error) {
 	return ret, nil
 }
 ```
-
-# Contributing
-
-Everyone is welcome to help improve jetcache-go. If you have any questions, suggestions, or want to add other features, please submit an issue or PR directly.
-
-Please follow these steps to submit a PR:
-
-- Clone the repository
-- Create a new branch: name it feature-xxx for new features or bug-xxx for bug fixes
-- Describe the changes in detail in the PR
-
-
-# Contact
-
-If you have any questions, please contact `daoshenzzg@gmail.com`.
