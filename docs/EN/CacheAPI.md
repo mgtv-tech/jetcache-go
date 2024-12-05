@@ -118,6 +118,9 @@ Once API: Distributed tool against cache breakdown - `auto refresh`
 > The `Once` API provides the capability for automatic cache refreshing, aiming to prevent the cascading effect caused by cache expiration leading to overwhelming database requests. It is suitable for scenarios where there are relatively few keys, low real-time requirements, and high loading costs for cache loading.
 > The following code specifies refreshing every minute and stopping refreshing after 1 hour of no access. If the cache is Redis or the last level of a multi-level cache is Redis, and the cache loading behavior is globally unique, meaning only one server is refreshing at a time regardless of the number of servers, the goal is to reduce the backend loading burden.
 
+> Regarding the AutoRefresh feature's usage scenario ("Suitable for scenarios with few keys, low real-time requirements, and very high loading overhead"), "few keys" requires clarification.
+> To determine an appropriate number of keys, you can create a model. For example, with refreshConcurrency=10, 5 application servers, an average loading time of 2 seconds per key, and refreshDuration=30s, the theoretical maximum number of refreshable keys is 30 / 2 * 10 * 5 = 750.
+
 Function Signature:
 
 ```go
