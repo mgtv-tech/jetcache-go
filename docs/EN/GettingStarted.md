@@ -3,6 +3,7 @@
 <!-- TOC -->
 * [Overview](#overview)
 * [Product Comparison](#product-comparison)
+* [Learning jetcache-go](#learning-jetcache-go)
 * [Installation](#installation)
 * [Quick started](#quick-started)
 <!-- TOC -->
@@ -39,9 +40,8 @@
 | Bulk Query            | No          | No             | Yes                   |
 | Sparse List Cache     | No          | No             | Yes                   |
 
-# Learning JetCache-go
-
-- [GettingStarted](/docs/EN/GettingStarted.md)
+# Learning jetcache-go
+- GettingStarted
 - [Cache API](/docs/EN/CacheAPI.md)
 - [Config](/docs/EN/Config.md)
 - [Embedded](/docs/EN/Embedded.md)

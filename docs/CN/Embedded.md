@@ -48,9 +48,9 @@ mycache := cache.New(cache.WithName("any"),
 
 > FreeCache 使用注意事项：
 > 
-> 缓存key的大小需要小于65535，否则无法存入到本地缓存中（The key is larger than 65535）
-> 缓存value的大小需要小于缓存总容量的1/1024，否则无法存入到本地缓存中（The entry size need less than 1/1024 of cache size）
-> 内嵌的FreeCache实例内部共享了一个 `innerCache` 实例，防止当多个缓存实例都使用 FreeCache 时内存占用过多。因此，共享 `innerCache` 会以第一次创建的配置的内存容量和过期时间为准。
+> 缓存key的大小需要小于65535，否则无法存入到本地缓存中（The key is larger than 65535）  
+> 缓存value的大小需要小于缓存总容量的1/1024，否则无法存入到本地缓存中（The entry size need less than 1/1024 of cache size）  
+> 内嵌的FreeCache实例内部共享了一个 `innerCache` 实例，防止当多个缓存实例都使用 FreeCache 时内存占用过多。因此，共享 `innerCache` 会以第一次创建的配置的内存容量和过期时间为准。  
 
 # 指标采集统计
 

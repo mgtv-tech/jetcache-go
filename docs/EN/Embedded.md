@@ -56,8 +56,8 @@ You can also implement your own local and remote caches by implementing the `rem
 
 > **FreeCache Usage Notes:**
 >
-> * Keys must be less than 65535 bytes.  Larger keys will result in an error ("The key is larger than 65535").
-> * Values must be less than 1/1024 of the total cache size. Larger values will result in an error ("The entry size needs to be less than 1/1024 of the cache size").
+> * Keys must be less than 65535 bytes.  Larger keys will result in an error ("The key is larger than 65535").  
+> * Values must be less than 1/1024 of the total cache size. Larger values will result in an error ("The entry size needs to be less than 1/1024 of the cache size").  
 > * Embedded FreeCache instances share an internal `innerCache` instance. This prevents excessive memory consumption when multiple cache instances use FreeCache.  Therefore, the memory capacity and expiration time will be determined by the configuration of the first created instance.
 
 

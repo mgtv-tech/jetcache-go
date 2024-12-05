@@ -1,7 +1,7 @@
 <!-- TOC -->
 * [Introduction](#introduction)
-  * [LogStats Default Output Format](#logstats-default-output-format)
-  * [Prometheus Plugin Visualization Dashboard](#prometheus-plugin-visualization-dashboard)
+* [LogStats Default Output Format](#logstats-default-output-format)
+* [Prometheus Plugin Visualization Dashboard](#prometheus-plugin-visualization-dashboard)
 <!-- TOC -->
 
 # Introduction
@@ -9,7 +9,7 @@
 `jetcache-go` provides built-in `LogStats` and a `Prometheus` statistics plugin via the [jetcache-go-plugin](https://github.com/mgtv-tech/jetcache-go-plugin).
 
 
-## LogStats Default Output Format
+# LogStats Default Output Format
 
 The default log output from LogStats follows this format:
 
@@ -32,6 +32,6 @@ test_lang_cache_2_remote|           2|      50.00%|           1|           1|   
 ------------------------+------------+------------+------------+------------+------------+------------
 ```
 
-## Prometheus Plugin Visualization Dashboard
+# Prometheus Plugin Visualization Dashboard
 
 ![stats](/docs/images/stats.png)

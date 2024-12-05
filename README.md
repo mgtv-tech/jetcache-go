@@ -30,7 +30,7 @@ Translate to: [简体中文](README_zh.md)
 - ✅ The `MGet` interface supports the `Load` function. In a distributed caching scenario, the Pipeline mode is used to improve performance. (v1.1.0+)
 - ✅ Invalidate local caches (in all Go processes) after updates (v1.1.1+)
 
-# Learning JetCache-go
+# Learning jetcache-go
 
 Visit [documentation](/docs/EN/GettingStarted.md) for more details.
 

@@ -1,5 +1,13 @@
 ![banner](/docs/images/banner.png)
 
+<!-- TOC -->
+* [简介](#简介)
+* [产品对比](#产品对比)
+* [详细文档](#详细文档)
+* [安装](#安装)
+* [快速开始](#快速开始)
+<!-- TOC -->
+
 # 简介
 
 `jetcache-go` 是基于 [go-redis/cache](https://github.com/go-redis/cache) 拓展的通用缓存框架。实现了类似Java版[JetCache](https://github.com/alibaba/jetcache)的核心功能，包括：
@@ -32,9 +40,9 @@
 | 稀疏列表缓存         | No          | No             | Yes                   |
 
 
-# 文档目录
+# 详细文档
 
-- [快速开始](/docs/CN/GettingStarted.md)
+- 快速开始
 - [缓存 API](/docs/CN/CacheAPI.md)
 - [配置选项](/docs/CN/Config.md)
 - [内嵌组件](/docs/CN/Embedded.md)
