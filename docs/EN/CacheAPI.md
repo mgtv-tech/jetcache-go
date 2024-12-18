@@ -124,6 +124,9 @@ This interface retrieves the value associated with a given `key` from the cache.
 > Regarding the use case for the auto-refresh feature ("suitable for scenarios with a small number of keys, low real-time requirements, and very high loading overhead"), the "small number of keys" requires further clarification. To determine the appropriate number of keys, a model can be established. For example, when `refreshConcurrency=10`, there are 5 application servers, the average loading time for each key is 2 seconds, and `refreshDuration=30s`, the theoretically maximum number of keys that can be refreshed is 30 / 2 * 10 * 5 = 750.
 
 
+> Regarding the AutoRefresh feature's usage scenario ("Suitable for scenarios with few keys, low real-time requirements, and very high loading overhead"), "few keys" requires clarification.
+> To determine an appropriate number of keys, you can create a model. For example, with refreshConcurrency=10, 5 application servers, an average loading time of 2 seconds per key, and refreshDuration=30s, the theoretical maximum number of refreshable keys is 30 / 2 * 10 * 5 = 750.
+
 Function Signature:
 
 ```go
