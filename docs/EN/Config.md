@@ -10,178 +10,180 @@
 
 # Cache Configuration Options
 
-| Configuration Item           | Type                      | Default Value                | Description                                                                                                                                                                                                                                                          |
-|------------------------------|---------------------------|------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `name`                       | `string`                  | `default`                    | Cache name, used for log identification and metrics reporting.                                                                                                                                                                                                       |
-| `remote`                     | `remote.Remote` interface | `nil`                        | Distributed cache, such as Redis.  A custom implementation can be provided by implementing the `remote.Remote` interface.                                                                                                                                            |
-| `local`                      | `local.Local` interface   | `nil`                        | In-memory cache, such as FreeCache, TinyLFU. A custom implementation can be provided by implementing the `local.Local` interface.                                                                                                                                    |
-| `codec`                      | `string`                  | `msgpack`                    | Encoding and decoding method for values. Defaults to "msgpack". Options: `msgpack` \| `sonic`. A custom implementation can be provided by implementing the `encoding.Codec` interface and registering it.                                                            |
-| `separatorDisabled`          | `bool`                    | `false`                      | Disables the cache key separator. Defaults to `false`. If `true`, the cache key will not use a separator. Primarily used for concatenating generic interface cache keys and IDs.                                                                                     |
-| `separator`                  | `string`                  | `:`                          | Cache key separator. Defaults to ":". Primarily used for concatenating generic interface cache keys and IDs.                                                                                                                                                         |
-| `errNotFound`                | `error`                   | `nil`                        | Error returned when a cache miss occurs, e.g., `gorm.ErrRecordNotFound`. Used to prevent cache penetration (caching null objects).                                                                                                                                   |
-| `remoteExpiry`               | `time.Duration`           | 1 hour                       | Remote cache TTL, defaults to 1 hour.                                                                                                                                                                                                                                |
-| `notFoundExpiry`             | `time.Duration`           | 1 minute                     | Expiration time for placeholder cache entries on cache misses. Defaults to 1 minute.                                                                                                                                                                                 |
-| `offset`                     | `time.Duration`           | (0,10] seconds               | Expiration time jitter factor for cache misses.                                                                                                                                                                                                                      |
-| `refreshDuration`            | `time.Duration`           | 0                            | Interval for asynchronous cache refresh. Defaults to 0 (refresh disabled).                                                                                                                                                                                           |
-| `stopRefreshAfterLastAccess` | `time.Duration`           | `refreshDuration + 1 second` | Duration before cache refresh stops (after last access).                                                                                                                                                                                                             |
-| `refreshConcurrency`         | `int`                     | 4                            | Maximum number of concurrent refresh tasks in the cache refresh task pool.                                                                                                                                                                                           |
-| `statsDisabled`              | `bool`                    | `false`                      | Flag to disable cache statistics.                                                                                                                                                                                                                                    |
-| `statsHandler`               | `stats.Handler` interface | `stats.NewStatsLogger`       | Metrics collector.  Defaults to a built-in `log` based collector.  The [jetcache-go-plugin](https://github.com/mgtv-tech/jetcache-go-plugin) provides a `Prometheus` plugin.  A custom implementation can be provided by implementing the `stats.Handler` interface. |
-| `sourceID`                   | `string`                  | 16-character random string   | **Cache Event Broadcasting:** Unique identifier for the cache instance.                                                                                                                                                                                              |
-| `syncLocal`                  | `bool`                    | `false`                      | **Cache Event Broadcasting:** Enables synchronization of local cache events (only applicable to "Both" cache type).                                                                                                                                                  |
-| `eventChBufSize`             | `int`                     | 100                          | **Cache Event Broadcasting:** Buffer size for the event channel (defaults to 100).                                                                                                                                                                                   |
-| `eventHandler`               | `func(event *Event)`      | `nil`                        | **Cache Event Broadcasting:** Function to handle local cache invalidation events.                                                                                                                                                                                    |
+| Configuration Item         | Data Type                 | Default Value              | Description                                                                                                                                                                                                                                   |
+|----------------------------|---------------------------|----------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| name                       | string                    | default                    | Cache name, used for log identification and metrics reporting.                                                                                                                                                                                |
+| remote                     | `remote.Remote` interface | nil                        | Distributed cache, such as Redis.  Can be customized by implementing the `remote.Remote` interface.                                                                                                                                           |
+| local                      | `local.Local` interface   | nil                        | In-memory cache, such as FreeCache, TinyLFU. Can be customized by implementing the `local.Local` interface.                                                                                                                                   |
+| codec                      | string                    | msgpack                    | Encoding and decoding method for values. Defaults to "msgpack". Options: `json` \| `msgpack` \| `sonic`. Can be customized by implementing the `encoding.Codec` interface and registering it.                                                 |
+| errNotFound                | error                     | nil                        | Error returned when a cache miss occurs, e.g., `gorm.ErrRecordNotFound`. Used to prevent cache penetration (i.e., caching empty objects).                                                                                                     |
+| remoteExpiry               | `time.Duration`           | 1 hour                     | Remote cache TTL, defaults to 1 hour.                                                                                                                                                                                                         |
+| notFoundExpiry             | `time.Duration`           | 1 minute                   | Expiration time for placeholder caches when a cache miss occurs. Defaults to 1 minute.                                                                                                                                                        |
+| offset                     | `time.Duration`           | (0,10] seconds             | Expiration time jitter factor for cache misses.                                                                                                                                                                                               |
+| refreshDuration            | `time.Duration`           | 0                          | Interval for asynchronous cache refresh. Defaults to 0 (refresh disabled).                                                                                                                                                                    |
+| stopRefreshAfterLastAccess | `time.Duration`           | refreshDuration + 1 second | Duration before cache refresh stops (after last access).                                                                                                                                                                                      |
+| refreshConcurrency         | int                       | 4                          | Maximum number of concurrent refreshes in the cache refresh task pool.                                                                                                                                                                        |
+| statsDisabled              | bool                      | false                      | Flag to disable cache statistics.                                                                                                                                                                                                             |
+| statsHandler               | `stats.Handler` interface | stats.NewStatsLogger       | Metrics collector.  Defaults to an embedded `log` collector.  Can use the [jetcache-go-plugin](https://github.com/mgtv-tech/jetcache-go-plugin) `Prometheus` plugin or a custom implementation that implements the `stats.Handler` interface. |
+| sourceID                   | string                    | 16-character random string | 【Cache Event Broadcasting】Unique identifier for the cache instance.                                                                                                                                                                           |
+| syncLocal                  | bool                      | false                      | 【Cache Event Broadcasting】Enable events to synchronize local caches (only applicable to "Both" cache types).                                                                                                                                  |
+| eventChBufSize             | int                       | 100                        | 【Cache Event Broadcasting】Buffer size of the event channel (defaults to 100).                                                                                                                                                                 |
+| eventHandler               | `func(event *Event)`      | nil                        | 【Cache Event Broadcasting】Function to handle local cache invalidation events.                                                                                                                                                                 |
+| separatorDisabled          | bool                      | false                      | Disable the cache key separator. Defaults to false. If true, the cache key will not use a separator. Currently mainly used for concatenating cache keys and IDs in generic interfaces.                                                        |
+| separator                  | string                    | :                          | Cache key separator. Defaults to ":". Currently mainly used for concatenating cache keys and IDs in generic interfaces.                                                                                                                       |
 
 
-# Creating Cache Instances
+# Cache Instance Creation
 
-## Example 1: Creating a Two-Level Cache Instance ("Both")
+## Example 1: Creating a Two-Level Cache Instance (Both)
 
 ```go
 import (
-    "context"
-    "time"
+	"context"
+	"time"
 
-    "github.com/jinzhu/gorm"
+	"github.com/jinzhu/gorm"
 	"github.com/mgtv-tech/jetcache-go"
-    "github.com/mgtv-tech/jetcache-go/local"
-    "github.com/mgtv-tech/jetcache-go/remote"
-    "github.com/redis/go-redis/v9"
+	"github.com/mgtv-tech/jetcache-go/local"
+	"github.com/mgtv-tech/jetcache-go/remote"
+	"github.com/redis/go-redis/v9"
 )
+
 ring := redis.NewRing(&redis.RingOptions{
-    Addrs: map[string]string{
-        "localhost": ":6379",
-    },
+	Addrs: map[string]string{
+		"localhost": ":6379",
+	},
 })
 
 // Create a two-level cache instance
 mycache := cache.New(cache.WithName("any"),
-    cache.WithRemote(remote.NewGoRedisV9Adapter(ring)),
-    cache.WithLocal(local.NewTinyLFU(10000, time.Minute)),
-    cache.WithErrNotFound(gorm.ErrRecordNotFound))
+	cache.WithRemote(remote.NewGoRedisV9Adapter(ring)),
+	cache.WithLocal(local.NewTinyLFU(10000, time.Minute)), // Local cache expiration time is uniformly set to 1 minute
+	cache.WithErrNotFound(gorm.ErrRecordNotFound))
 
 obj := struct {
-    Name string
-    Age  int
+	Name string
+	Age  int
 }{Name: "John Doe", Age: 30}
 
+// Set cache, where the remote cache expiration time TTL is 1 hour
 err := mycache.Set(context.Background(), "mykey", cache.Value(&obj), cache.TTL(time.Hour))
 if err != nil {
-    // Handle error
+	// Error handling
 }
 ```
 
-## Example 2: Creating a Local-Only Cache Instance ("Local")
+## Example 2: Creating a Local-Only Cache Instance (Local)
 
 ```go
 import (
-    "context"
-    "time"
+	"context"
+	"time"
 
-    "github.com/jinzhu/gorm"
+	"github.com/jinzhu/gorm"
 	"github.com/mgtv-tech/jetcache-go"
-    "github.com/mgtv-tech/jetcache-go/local"
+	"github.com/mgtv-tech/jetcache-go/local"
 )
-ring := redis.NewRing(&redis.RingOptions{
-    Addrs: map[string]string{
-        "localhost": ":6379",
-    },
-})
 
 // Create a local-only cache instance
 mycache := cache.New(cache.WithName("any"),
-    cache.WithLocal(local.NewTinyLFU(10000, time.Minute)),
-    cache.WithErrNotFound(gorm.ErrRecordNotFound))
+	cache.WithLocal(local.NewTinyLFU(10000, time.Minute)),
+	cache.WithErrNotFound(gorm.ErrRecordNotFound))
 
 obj := struct {
-    Name string
-    Age  int
+	Name string
+	Age  int
 }{Name: "John Doe", Age: 30}
 
-err := mycache.Set(context.Background(), "mykey", cache.Value(&obj), cache.TTL(time.Hour))
+err := mycache.Set(context.Background(), "mykey", cache.Value(&obj))
 if err != nil {
-    // Handle error
+	// Error handling
 }
 ```
 
-## Example 3: Creating a Remote-Only Cache Instance ("Remote")
+## Example 3: Creating a Remote-Only Cache Instance (Remote)
 
 ```go
 import (
-    "context"
-    "time"
+	"context"
+	"time"
 
-    "github.com/jinzhu/gorm"
+	"github.com/jinzhu/gorm"
 	"github.com/mgtv-tech/jetcache-go"
-    "github.com/mgtv-tech/jetcache-go/remote"
-    "github.com/redis/go-redis/v9"
+	"github.com/mgtv-tech/jetcache-go/remote"
+	"github.com/redis/go-redis/v9"
 )
+
 ring := redis.NewRing(&redis.RingOptions{
-    Addrs: map[string]string{
-        "localhost": ":6379",
-    },
+	Addrs: map[string]string{
+		"localhost": ":6379",
+	},
 })
 
 // Create a remote-only cache instance
 mycache := cache.New(cache.WithName("any"),
-    cache.WithRemote(remote.NewGoRedisV9Adapter(ring)),
-    cache.WithErrNotFound(gorm.ErrRecordNotFound))
+	cache.WithRemote(remote.NewGoRedisV9Adapter(ring)),
+	cache.WithErrNotFound(gorm.ErrRecordNotFound))
 
 obj := struct {
-    Name string
-    Age  int
+	Name string
+	Age  int
 }{Name: "John Doe", Age: 30}
 
 err := mycache.Set(context.Background(), "mykey", cache.Value(&obj), cache.TTL(time.Hour))
 if err != nil {
-    // Handle error
+	// Error handling
 }
 ```
 
-
-## Example 4: Creating a Cache Instance with the [jetcache-go-plugin](https://github.com/mgtv-tech/jetcache-go-plugin) Prometheus Statistics Plugin
+## Example 4: Creating a Cache Instance and Configuring the [jetcache-go-plugin](https://github.com/mgtv-tech/jetcache-go-plugin) Prometheus Statistics Plugin
 
 ```go
 import (
-    "context"
-    "time"
+	"context"
+	"time"
 
-    "github.com/mgtv-tech/jetcache-go"
-    "github.com/mgtv-tech/jetcache-go/remote"
-    "github.com/redis/go-redis/v9"
-    pstats "github.com/mgtv-tech/jetcache-go-plugin/stats"
-    "github.com/mgtv-tech/jetcache-go/stats"
+	"github.com/mgtv-tech/jetcache-go"
+	"github.com/mgtv-tech/jetcache-go/remote"
+	"github.com/redis/go-redis/v9"
+	pstats "github.com/mgtv-tech/jetcache-go-plugin/stats"
+	"github.com/mgtv-tech/jetcache-go/stats"
 )
 
 mycache := cache.New(cache.WithName("any"),
 	cache.WithRemote(remote.NewGoRedisV9Adapter(ring)),
-    cache.WithStatsHandler(
-        stats.NewHandles(false,
-            stats.NewStatsLogger(cacheName), 
-            pstats.NewPrometheus(cacheName))))
+	cache.WithStatsHandler(
+		stats.NewHandles(false,
+			stats.NewStatsLogger(cacheName),
+			pstats.NewPrometheus(cacheName))))
 
 obj := struct {
-    Name string
-    Age  int
+	Name string
+	Age  int
 }{Name: "John Doe", Age: 30}
 
 err := mycache.Set(context.Background(), "mykey", cache.Value(&obj), cache.TTL(time.Hour))
 if err != nil {
-    // Handle error
+	// Error handling
 }
 ```
+
+> Example 4 integrates both `Log` and `Prometheus` statistics.  See: [Stat](/docs/EN/Stat.md)
+
 
 ## Example 5: Creating a Cache Instance and Configuring `errNotFound` to Prevent Cache Penetration
 
 ```go
 import (
     "context"
-	"fmt"
+    "fmt"
     "time"
-
+  
     "github.com/jinzhu/gorm"
-	"github.com/mgtv-tech/jetcache-go"
+    "github.com/mgtv-tech/jetcache-go"
+    "github.com/redis/go-redis/v9"
 )
+
 ring := redis.NewRing(&redis.RingOptions{
     Addrs: map[string]string{
         "localhost": ":6379",
@@ -190,11 +192,11 @@ ring := redis.NewRing(&redis.RingOptions{
 
 // Create a cache instance and configure errNotFound to prevent cache penetration
 mycache := cache.New(cache.WithName("any"),
-	// ...
+    cache.WithRemote(remote.NewGoRedisV9Adapter(ring)), // Assuming you still want a remote cache
     cache.WithErrNotFound(gorm.ErrRecordNotFound))
 
 var value string
-err := mycache.Once(ctx, key, Value(&value), Do(func(context.Context) (any, error) {
+err := mycache.Once(ctx, key, cache.Value(&value), cache.Do(func(context.Context) (any, error) {
     return nil, gorm.ErrRecordNotFound
 }))
 fmt.Println(err)
@@ -202,8 +204,8 @@ fmt.Println(err)
 // Output: record not found
 ```
 
-`jetcache-go` uses a lightweight approach of caching null objects to address cache penetration:
+`jetcache-go` uses a lightweight approach of [caching null objects] to address cache penetration:
 
-- Specify the errNotFound error: When creating the cache instance, specify the error to be returned when a key is not found. Examples include gorm.ErrRecordNotFound or redis.Nil.
-- Cache nil values: If a query encounters the specified errNotFound error, a placeholder value (*) is cached.
-- Handle nil values: When retrieving a value, the cache checks if the retrieved value is the placeholder(*). If it is, the corresponding `errNotFound` error is returned.
+- When creating a cache instance, specify a "not found" error. For example: `gorm.ErrRecordNotFound`, `redis.Nil`.
+- If a "not found" error is encountered during a query, a placeholder value (e.g., a special marker) is cached.
+- When retrieving the value, check if it's the placeholder. If so, return the corresponding "not found" error.

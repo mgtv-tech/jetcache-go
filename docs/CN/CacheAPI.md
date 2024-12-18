@@ -45,7 +45,7 @@ func Close()
 
 ## Set 接口
 
-该接口用于设置缓存。它支持多种选项，例如设置值(`Value`)、过期时间(`TTL`)、回源函数(`Do`)、以及针对 `Remote` 缓存的原子操作。
+该接口用于设置缓存。它支持多种选项，例如设置值(`Value`)、远程过期时间(`TTL`)、回源函数(`Do`)、以及针对 `Remote` 缓存的原子操作。
 
 函数签名：
 ```go
@@ -57,7 +57,7 @@ func Set(ctx context.Context, key string, opts ...ItemOption) error
 - `key`: `string`，缓存键。
 - `opts`: `...ItemOption`，可变参数列表，用于配置缓存项的各种选项。 支持以下选项：
     - `Value(value any)`: 设置缓存值。
-    - `TTL(duration time.Duration)`: 设置缓存项的过期时间。
+    - `TTL(duration time.Duration)`: 设置远程缓存项的过期时间。（本地缓存过期时间在构建 Local 缓存实例的时候统一设置）
     - `Do(fn func(context.Context) (any, error))`: 给定的回源函数 `fn` 来获取值，优先级高于 `Value`。
     - `SetNX(flag bool)`: 仅当键不存在时才设置缓存项。 适用于远程缓存，防止覆盖已存在的值。
     - `SetXX(flag bool)`: 仅当键存在时才设置缓存项。适用于远程缓存，确保只更新已存在的值。
@@ -99,7 +99,7 @@ if err != nil {
 
 ## Once 接口
 
-该接口从缓存中获取给定 `Key` 的值，或者执行 `Do` 函数，然后将结果缓存并返回。它确保对于给定的 `Key`，同一时间只有一个执行在进行中。如果出现重复请求，重复的调用者将等待原始请求完成，并接收相同的结果。
+该接口从缓存中获取给定 `Key` 的值。若未命中缓存，则执行 `Do` 函数，然后将结果缓存并返回。它确保对于给定的 `Key`，同一时间只有一个执行在进行中。如果出现重复请求，重复的调用者将等待原始请求完成，并接收相同的结果。
 通过设置 `Refresh(true)` 可开启缓存自动刷新。
 
 `Once` 接口：分布式-防缓存击穿利器 - `singleflight`
@@ -115,7 +115,7 @@ if err != nil {
 ![autoRefresh](/docs/images/autorefresh.png)
 
 > `Once`接口提供了自动刷新缓存的能力，目的是为了防止缓存失效时造成的雪崩效应打爆数据库。对一些key比较少，实时性要求不高，加载开销非常大的缓存场景，
-> 适合使用自动刷新。下面的代码指定每分钟刷新一次，1小时如果没有访问就停止刷新。如果缓存是redis或者多级缓存最后一级是redis，缓存加载行为是全局唯一的，
+> 适合使用自动刷新。下面的代码（示例1）指定每分钟刷新一次，1小时如果没有访问就停止刷新。如果缓存是redis或者多级缓存最后一级是redis，缓存加载行为是全局唯一的，
 > 也就是说不管有多少台服务器，同时只有一个服务器在刷新，目的是为了降低后端的加载负担。
 
 > 关于自动刷新功能的使用场景（“适用于按键数量少、实时性要求低、加载开销非常大的场景”），其中“按键数量少”需要进一步说明。
@@ -133,7 +133,7 @@ func Once(ctx context.Context, key string, opts ...ItemOption) error
 - `key`: `string`，缓存键。
 - `opts`: `...ItemOption`，可变参数列表，用于配置缓存项的各种选项。 支持以下选项：
     - `Value(value any)`: 设置缓存值。
-    - `TTL(duration time.Duration)`: 设置缓存项的过期时间。
+    - `TTL(duration time.Duration)`: 设置远程缓存项的过期时间。（本地缓存过期时间在构建 Local 缓存实例的时候统一设置）
     - `Do(fn func(context.Context) (any, error))`: 给定的回源函数 `fn` 来获取值，优先级高于 `Value`。
     - `SkipLocal(flag bool)`: 是否跳过本地缓存。
     - `Refresh(refresh bool)`: 是否开启缓存自动刷新。配合 Cache 配置参数 `config.refreshDuration` 设置刷新周期。
