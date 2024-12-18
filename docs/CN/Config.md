@@ -15,9 +15,7 @@
 | name                       | string               | default              | 缓存名称，用于日志标识和指标报告                                                                                                                                  |
 | remote                     | `remote.Remote` 接口   | nil                  | remote 是分布式缓存，例如 Redis。也可以自定义，实现`remote.Remote`接口即可                                                                                               |
 | local                      | `local.Local` 接口     | nil                  | local 是内存缓存，例如 FreeCache、TinyLFU。也可以自定义，实现`local.Local`接口即可                                                                                       |
-| codec                      | string               | msgpack              | value的编码和解码方法。默认为 "msgpack"。可选：msgpack \| sonic，也可以自定义，实现`encoding.Codec`接口并注册即可                                                                  |
-| separatorDisabled          | bool                 | false                | 禁用缓存键的分隔符。默认为false。如果为true，则缓存键不会使用分隔符。目前主要用于泛型接口的缓存key和ID拼接                                                                                      |
-| separator                  | string               | :                    | 缓存键的分隔符。默认为 ":"。目前主要用于泛型接口的缓存key和ID拼接                                                                                                             |
+| codec                      | string               | msgpack              | value的编码和解码方法。默认为 "msgpack"。可选：`json` \| `msgpack` \| `sonic`，也可以自定义，实现`encoding.Codec`接口并注册即可                                                    | 
 | errNotFound                | error                | nil                  | 缓存未命中时返回的错误，例：`gorm.ErrRecordNotFound`。用于防止缓存穿透（即缓存空对象）                                                                                           |
 | remoteExpiry               | `time.Duration`      | 1小时                  | 远程缓存 TTL，默认为 1 小时                                                                                                                                 |
 | notFoundExpiry             | `time.Duration`      | 1分钟                  | 缓存未命中时占位符缓存的过期时间。默认为 1 分钟                                                                                                                         |
@@ -31,7 +29,8 @@
 | syncLocal                  | bool                 | false                | 【缓存事件广播】启用同步本地缓存的事件（仅适用于 "Both" 缓存类型）                                                                                                             |
 | eventChBufSize             | int                  | 100                  | 【缓存事件广播】事件通道的缓冲区大小（默认为 100）                                                                                                                       |
 | eventHandler               | `func(event *Event)` | nil                  | 【缓存事件广播】处理本地缓存失效事件的函数                                                                                                                             |
-
+| separatorDisabled          | bool                 | false                | 禁用缓存键的分隔符。默认为false。如果为true，则缓存键不会使用分隔符。目前主要用于泛型接口的缓存key和ID拼接                                                                                      |
+| separator                  | string               | :                    | 缓存键的分隔符。默认为 ":"。目前主要用于泛型接口的缓存key和ID拼接                                                                                                             |
 
 # Cache 缓存实例创建
 
@@ -57,14 +56,14 @@ ring := redis.NewRing(&redis.RingOptions{
 // 创建二级缓存实例
 mycache := cache.New(cache.WithName("any"),
     cache.WithRemote(remote.NewGoRedisV9Adapter(ring)),
-    cache.WithLocal(local.NewTinyLFU(10000, time.Minute)),
+    cache.WithLocal(local.NewTinyLFU(10000, time.Minute)), // 本地缓存过期时间统一为 1 分钟
     cache.WithErrNotFound(gorm.ErrRecordNotFound))
 
 obj := struct {
     Name string
     Age  int
 }{Name: "John Doe", Age: 30}
-
+// 设置缓存，其中远程缓存过期时间 TTL 为 1 小时
 err := mycache.Set(context.Background(), "mykey", cache.Value(&obj), cache.TTL(time.Hour))
 if err != nil {
     // 错误处理
@@ -98,7 +97,7 @@ obj := struct {
     Age  int
 }{Name: "John Doe", Age: 30}
 
-err := mycache.Set(context.Background(), "mykey", cache.Value(&obj), cache.TTL(time.Hour))
+err := mycache.Set(context.Background(), "mykey", cache.Value(&obj))
 if err != nil {
     // 错误处理
 }
@@ -169,6 +168,7 @@ if err != nil {
     // 错误处理
 }
 ```
+> 示例4 同时集成了 `Log` 和 `Prometheus` 统计。效果见：[Stat](/docs/CN/Stat.md)
 
 ## 示例5：创建缓存实例，并配置 `errNotFound` 防止缓存穿透
 

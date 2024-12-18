@@ -73,7 +73,7 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
-var errRecordNotFound = errors.New("mock gorm.errRecordNotFound")
+var errRecordNotFound = errors.New("mock gorm.ErrRecordNotFound")
 
 type object struct {
 	Str string

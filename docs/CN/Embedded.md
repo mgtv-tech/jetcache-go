@@ -13,11 +13,11 @@
 
 # 多种序列化方式
 
-| codec方式                                           | 说明                        | 优势                |
-|---------------------------------------------------|---------------------------|-------------------|
-| native json                                       | golang自带的序列化工具            | 字节开源的高性能json序列化工具 |
-| [msgpack](https://github.com/vmihailenco/msgpack) | msgpack+snappy压缩（内容>64字节) | 性能较强，内存占用小        |
-| [sonic](https://github.com/go-sonic/sonic)        | 字节开源的高性能json序列化工具         | 性能强               |
+| codec方式                                           | 说明                        | 优势         |
+|---------------------------------------------------|---------------------------|------------|
+| native json                                       | golang自带的序列化工具            | 兼容性好       |
+| [msgpack](https://github.com/vmihailenco/msgpack) | msgpack+snappy压缩（内容>64字节) | 性能较强，内存占用小 |
+| [sonic](https://github.com/go-sonic/sonic)        | 字节开源的高性能json序列化工具         | 性能强        |
 
 你也可以通过实现 `encoding.Codec` 接口来自定义自己的序列化，并通过 `encoding.RegisterCodec` 注册进来。
 
@@ -34,7 +34,7 @@ mycache := cache.New(cache.WithName("any"),
     cache.WithRemote(...),
     cache.WithCodec(yourCodec.Name))
 ```
- 
+
 
 # 多种本地缓存、远程缓存
 
@@ -47,10 +47,11 @@ mycache := cache.New(cache.WithName("any"),
 你也可以通过实现 `remote.Remote`、`local.Local` 接口来实现自己的本地、远程缓存。
 
 > FreeCache 使用注意事项：
-> 
+>
 > 缓存key的大小需要小于65535，否则无法存入到本地缓存中（The key is larger than 65535）  
 > 缓存value的大小需要小于缓存总容量的1/1024，否则无法存入到本地缓存中（The entry size need less than 1/1024 of cache size）  
-> 内嵌的FreeCache实例内部共享了一个 `innerCache` 实例，防止当多个缓存实例都使用 FreeCache 时内存占用过多。因此，共享 `innerCache` 会以第一次创建的配置的内存容量和过期时间为准。  
+> 内嵌的FreeCache实例内部共享了一个 `innerCache` 实例，防止当多个缓存实例都使用 FreeCache 时内存占用过多。因此，共享 `innerCache` 会以第一次创建的配置的内存容量和过期时间为准。
+
 
 # 指标采集统计
 
