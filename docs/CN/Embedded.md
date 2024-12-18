@@ -1,99 +1,99 @@
 <!-- TOC -->
-* [Introduction](#introduction)
-* [Serialization Methods](#serialization-methods)
-* [Local and Remote Cache Options](#local-and-remote-cache-options)
-* [Metrics Collection and Statistics](#metrics-collection-and-statistics)
-* [Customizing Logging](#customizing-logging)
+* [介绍](#介绍)
+* [多种序列化方式](#多种序列化方式)
+* [多种本地缓存、远程缓存](#多种本地缓存远程缓存)
+* [指标采集统计](#指标采集统计)
+* [自定义接管日志](#自定义接管日志)
 <!-- TOC -->
 
-# Introduction
+# 介绍
 
-`jetcache-go` implements many embedded components through generic interfaces, making it easy for developers to integrate and reference for creating their own components.
+`jetcache-go` 通过通用接口实现了许多内嵌组件，方便开发者集成，以及参考实现自己的组件。
 
 
-# Serialization Methods
+# 多种序列化方式
 
-| Codec Method | Description                                          | Advantages                         |
-|--------------|------------------------------------------------------|------------------------------------|
-| native json  | Golang's built-in serialization tool                 | Good compatibility                 |
-| msgpack      | msgpack with snappy compression (content > 64 bytes) | High performance, low memory usage |
-| sonic        | Byte-based high-performance JSON serialization tool  | High performance                   |
+| codec方式                                           | 说明                        | 优势         |
+|---------------------------------------------------|---------------------------|------------|
+| native json                                       | golang自带的序列化工具            | 兼容性好       |
+| [msgpack](https://github.com/vmihailenco/msgpack) | msgpack+snappy压缩（内容>64字节) | 性能较强，内存占用小 |
+| [sonic](https://github.com/go-sonic/sonic)        | 字节开源的高性能json序列化工具         | 性能强        |
 
-You can also define your own serialization by implementing the `encoding.Codec` interface and registering it using `encoding.RegisterCodec`.
+你也可以通过实现 `encoding.Codec` 接口来自定义自己的序列化，并通过 `encoding.RegisterCodec` 注册进来。
 
 ```go
+
 import (
-	_ "github.com/mgtv-tech/jetcache-go/encoding/yourCodec"
+    _ "github.com/mgtv-tech/jetcache-go/encoding/yourCodec"
 )
 
 // Register your codec
 encoding.RegisterCodec(yourCodec.Name)
 
 mycache := cache.New(cache.WithName("any"),
-	cache.WithRemote(...),
-	cache.WithCodec(yourCodec.Name))
+    cache.WithRemote(...),
+    cache.WithCodec(yourCodec.Name))
 ```
 
 
-# Local and Remote Cache Options
+# 多种本地缓存、远程缓存
 
-| Name      | Type   | Features                                                     |
-|-----------|--------|--------------------------------------------------------------|
-| ristretto | Local  | High performance, high hit rate                              |
-| freecache | Local  | Zero garbage collection overhead, strict memory usage limits |
-| go-redis  | Remote | Popular GO Redis client                                      |
+| 名称                                                  | 类型     | 特点                |
+|-----------------------------------------------------|--------|-------------------|
+| [ristretto](https://github.com/dgraph-io/ristretto) | Local  | 高性能、高命中率          |
+| [freecache](https://github.com/coocood/freecache)   | Local  | 零垃圾收集负荷、严格限制内存使用  |
+| [go-redis](https://github.com/redis/go-redis)       | Remote | 最流行的 GO Redis 客户端 |
 
-You can also implement your own local and remote caches by implementing the `remote.Remote` and `local.Local` interfaces.
+你也可以通过实现 `remote.Remote`、`local.Local` 接口来实现自己的本地、远程缓存。
 
-> **FreeCache Usage Notes:**
+> FreeCache 使用注意事项：
 >
-> - The cache key size must be less than 65535, otherwise it cannot be stored in the local cache (The key is larger than 65535).
-> - The cache value size must be less than 1/1024 of the total cache capacity, otherwise it cannot be stored in the local cache (The entry size needs to be less than 1/1024 of the cache size).
-> - The embedded FreeCache instance internally shares an `innerCache` instance to prevent excessive memory usage when multiple cache instances use FreeCache. Therefore, the shared `innerCache` will use the memory capacity and expiration time configured during the first creation.
+> 缓存key的大小需要小于65535，否则无法存入到本地缓存中（The key is larger than 65535）  
+> 缓存value的大小需要小于缓存总容量的1/1024，否则无法存入到本地缓存中（The entry size need less than 1/1024 of cache size）  
+> 内嵌的FreeCache实例内部共享了一个 `innerCache` 实例，防止当多个缓存实例都使用 FreeCache 时内存占用过多。因此，共享 `innerCache` 会以第一次创建的配置的内存容量和过期时间为准。
 
+# 指标采集统计
 
-# Metrics Collection and Statistics
+| 名称              | 类型 | 说明                                                                            |
+|-----------------|----|-------------------------------------------------------------------------------|
+| logStats        | 内嵌 | 默认的指标采集统计器，统计信息打印到日志                                                          |
+| PrometheusStats | 插件 | [jetcache-go-plugin](https://github.com/mgtv-tech/jetcache-go-plugin) 提供的统计插件 |
 
-| Name            | Type     | Description                                                                                         |
-|-----------------|----------|-----------------------------------------------------------------------------------------------------|
-| logStats        | Embedded | Default metrics collector, statistics are printed to the log                                        |
-| PrometheusStats | Plugin   | Statistics plugin provided by [jetcache-go-plugin](https://github.com/mgtv-tech/jetcache-go-plugin) |
+你也可以通过实现 `stats.Handler` 接口来自定义自己的指标采集器。
 
-You can also define your own metrics collector by implementing the `stats.Handler` interface.
-
-Example: Using multiple metrics collectors simultaneously
+示例：同时使用多种指标采集器
 
 ```go
 import (
-	"context"
-	"time"
+    "context"
+    "time"
 
-	"github.com/mgtv-tech/jetcache-go"
-	"github.com/mgtv-tech/jetcache-go/remote"
-	"github.com/redis/go-redis/v9"
-	pstats "github.com/mgtv-tech/jetcache-go-plugin/stats"
-	"github.com/mgtv-tech/jetcache-go/stats"
+    "github.com/mgtv-tech/jetcache-go"
+    "github.com/mgtv-tech/jetcache-go/remote"
+    "github.com/redis/go-redis/v9"
+    pstats "github.com/mgtv-tech/jetcache-go-plugin/stats"
+    "github.com/mgtv-tech/jetcache-go/stats"
 )
 
 mycache := cache.New(cache.WithName("any"),
 	cache.WithRemote(remote.NewGoRedisV9Adapter(ring)),
-	cache.WithStatsHandler(
-		stats.NewHandles(false,
-			stats.NewStatsLogger(cacheName),
-			pstats.NewPrometheus(cacheName))))
+    cache.WithStatsHandler(
+        stats.NewHandles(false,
+            stats.NewStatsLogger(cacheName), 
+            pstats.NewPrometheus(cacheName))))
 
 obj := struct {
-	Name string
-	Age  int
+    Name string
+    Age  int
 }{Name: "John Doe", Age: 30}
 
 err := mycache.Set(context.Background(), "mykey", cache.Value(&obj), cache.TTL(time.Hour))
 if err != nil {
-	// Error handling
+    // 错误处理
 }
 ```
 
-# Customizing Logging
+# 自定义接管日志
 
 ```go
 import "github.com/mgtv-tech/jetcache-go/logger"
@@ -101,3 +101,6 @@ import "github.com/mgtv-tech/jetcache-go/logger"
 // Set your Logger
 logger.SetDefaultLogger(l logger.Logger)
 ```
+
+
+
