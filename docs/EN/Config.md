@@ -1,10 +1,10 @@
 <!-- TOC -->
 * [Cache Configuration Options](#cache-configuration-options)
-* [Creating Cache Instances](#creating-cache-instances)
-  * [Example 1: Creating a Two-Level Cache Instance ("Both")](#example-1-creating-a-two-level-cache-instance-both)
-  * [Example 2: Creating a Local-Only Cache Instance ("Local")](#example-2-creating-a-local-only-cache-instance-local)
-  * [Example 3: Creating a Remote-Only Cache Instance ("Remote")](#example-3-creating-a-remote-only-cache-instance-remote)
-  * [Example 4: Creating a Cache Instance with the jetcache-go-plugin Prometheus Statistics Plugin](#example-4-creating-a-cache-instance-with-the-jetcache-go-plugin-prometheus-statistics-plugin)
+* [Cache Instance Creation](#cache-instance-creation)
+  * [Example 1: Creating a Two-Level Cache Instance (Both)](#example-1-creating-a-two-level-cache-instance-both)
+  * [Example 2: Creating a Local-Only Cache Instance (Local)](#example-2-creating-a-local-only-cache-instance-local)
+  * [Example 3: Creating a Remote-Only Cache Instance (Remote)](#example-3-creating-a-remote-only-cache-instance-remote)
+  * [Example 4: Creating a Cache Instance and Configuring the jetcache-go-plugin Prometheus Statistics Plugin](#example-4-creating-a-cache-instance-and-configuring-the-jetcache-go-plugin-prometheus-statistics-plugin)
   * [Example 5: Creating a Cache Instance and Configuring `errNotFound` to Prevent Cache Penetration](#example-5-creating-a-cache-instance-and-configuring-errnotfound-to-prevent-cache-penetration)
 <!-- TOC -->
 

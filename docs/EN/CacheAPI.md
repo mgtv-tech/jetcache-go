@@ -1,9 +1,9 @@
 <!-- TOC -->
-* [Cache API](#cache-api)
-  * [Set API](#set-api)
-  * [Once API](#once-api)
-* [Generic API](#generic-api)
-  * [Batch Query with MGet](#batch-query-with-mget)
+* [Cache Interface](#cache-interface)
+  * [Set Interface](#set-interface)
+  * [Once Interface](#once-interface)
+* [Generic Interfaces](#generic-interfaces)
+  * [MGet Bulk Query](#mget-bulk-query)
 <!-- TOC -->
 
 
