@@ -33,7 +33,7 @@ Visit [documentation](/docs/CN/GettingStarted.md) for more details.
 
 # 安装
 
-使用最新版本的jetcache-go，您可以在项目中导入该库：
+使用最新版本的 jetcache-go，请确保已安装 Go 1.21 或更高版本，您可以在项目中导入该库：
 
 ```shell
 go get github.com/mgtv-tech/jetcache-go
