@@ -36,7 +36,7 @@ Visit [documentation](/docs/EN/GettingStarted.md) for more details.
 
 # Installation
 
-To start using the latest version of jetcache-go, you can import the library into your project:
+To get started with the latest version of jetcache-go, make sure you have Go **1.21** or later installed, then simply import the library into your project.
 
 ```shell
 go get github.com/mgtv-tech/jetcache-go

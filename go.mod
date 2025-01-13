@@ -1,6 +1,8 @@
 module github.com/mgtv-tech/jetcache-go
 
-go 1.20
+go 1.21
+
+toolchain go1.21.13
 
 require (
 	github.com/alicebob/miniredis/v2 v2.33.0
