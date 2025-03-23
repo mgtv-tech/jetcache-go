@@ -200,6 +200,7 @@ func (w *T[K, V]) mQueryAndSetCache(ctx context.Context, miss map[string]K, fn f
 	c.statsHandler.IncrQuery()
 	fnValues, err := fn(ctx, missIds)
 	if err != nil {
+		logger.Error("mQueryAndSetCache#fn(%v) error(%v)", missIds, err)
 		c.statsHandler.IncrQueryFail(err)
 		return nil
 	}
