@@ -193,6 +193,7 @@ Function Signature:
 
 ```go
 func (w *T[K, V]) MGet(ctx context.Context, key string, ids []K, fn func(context.Context, []K) (map[K]V, error)) (result map[K]V)
+func (w *T[K, V]) MGetWithErr(ctx context.Context, key string, ids []K, fn func(context.Context, []K) (map[K]V, error)) (result map[K]V, err error)
 ```
 
 Parameters:
