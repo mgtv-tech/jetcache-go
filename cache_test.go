@@ -337,7 +337,7 @@ var _ = Describe("Cache", func() {
 
 			It("with will skip elements that remote MSet error", func() {
 				if cache.CacheType() == TypeRemote {
-					codecErrCache := New(WithName("codecErr"),
+					codecErrCache := New(WithName("redisError"),
 						WithRemote(&mockGoRedisMGetMSetErrAdapter{}))
 					cacheT := NewT[int, *object](codecErrCache)
 					ids := []int{1, 2, 3}
@@ -350,6 +350,27 @@ var _ = Describe("Cache", func() {
 					// 2nd cache hit placeholder "*", then return miss
 					ret = cacheT.MGet(context.Background(), "key", ids, nil)
 					Expect(ret).To(Equal(map[int]*object{}))
+				}
+			})
+
+			It("with returning both the results and any errors", func() {
+				if cache.CacheType() == TypeRemote {
+					codecErrCache := New(WithName("redisError"),
+						WithLocal(localNew(freeCache)),
+						WithRemote(&mockGoRedisMGetMSetErrAdapter{}))
+					cacheT := NewT[int, *object](codecErrCache)
+					ids := []int{1, 2, 3}
+					// 1st redis error, but return origin load func data
+					ret, err := cacheT.MGetWithErr(context.Background(), "key", ids,
+						func(ctx context.Context, ids []int) (map[int]*object, error) {
+							return map[int]*object{1: {Str: "str1", Num: 1}, 2: {Str: "str2", Num: 2}}, nil
+						})
+					Expect(err).To(HaveOccurred())
+					Expect(ret).To(Equal(map[int]*object{1: {Str: "str1", Num: 1}, 2: {Str: "str2", Num: 2}}))
+					// 2nd hit local cache
+					ret, err = cacheT.MGetWithErr(context.Background(), "key", ids, nil)
+					Expect(err).NotTo(HaveOccurred())
+					Expect(ret).To(Equal(map[int]*object{1: {Str: "str1", Num: 1}, 2: {Str: "str2", Num: 2}}))
 				}
 			})
 		})

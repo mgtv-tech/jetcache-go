@@ -3,6 +3,7 @@ package cache
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"sort"
 
@@ -52,13 +53,27 @@ func (w *T[K, V]) Get(ctx context.Context, key string, id K, fn func(context.Con
 }
 
 // MGet efficiently retrieves multiple values associated with the given `key` and `ids`.
+// It is a wrapper around MGetWithErr that logs any errors and returns only the results.
+func (w *T[K, V]) MGet(ctx context.Context, key string, ids []K, fn func(context.Context, []K) (map[K]V, error)) (result map[K]V) {
+	var err error
+	if result, err = w.MGetWithErr(ctx, key, ids, fn); err != nil {
+		logger.Warn("MGet error(%v)", err)
+	}
+
+	return
+}
+
+// MGetWithErr efficiently retrieves multiple values associated with the given `key` and `ids`,
+// returning both the results and any errors encountered during the process.
 //
-// It attempts to fetch all values from the cache. For missing values, it calls the provided
-// `fn` function to fetch the remaining values and updates the cache with an expiration time
-// determined by the cache configuration.
+// It first attempts to retrieve values from the local cache (if enabled), then from the remote cache (if enabled).
+// For any values not found in the caches, it calls the provided `fn` function to fetch them from the
+// underlying data source. The fetched values are then stored in both the local and remote caches for
+// future use.
 //
 // The results are returned as a map where the key is the `id` and the value is the corresponding data.
-func (w *T[K, V]) MGet(ctx context.Context, key string, ids []K, fn func(context.Context, []K) (map[K]V, error)) (result map[K]V) {
+// Any errors encountered during the cache retrieval or data fetching process are returned as a non-nil error.
+func (w *T[K, V]) MGetWithErr(ctx context.Context, key string, ids []K, fn func(context.Context, []K) (map[K]V, error)) (result map[K]V, errs error) {
 	c := w.Cache.(*jetCache)
 
 	miss := make(map[string]K, len(ids))
@@ -68,7 +83,7 @@ func (w *T[K, V]) MGet(ctx context.Context, key string, ids []K, fn func(context
 	}
 
 	if c.local != nil {
-		result = w.mGetLocal(miss, true)
+		result, errs = w.mGetLocal(miss, true)
 		if len(miss) == 0 {
 			return
 		}
@@ -90,38 +105,45 @@ func (w *T[K, V]) MGet(ctx context.Context, key string, ids []K, fn func(context
 	combKey := fmt.Sprintf("%s%s%v", key, c.separator, missIds)
 	v, err, _ := c.group.Do(combKey, func() (interface{}, error) {
 		var ret map[K]V
+
+		process := func(r map[K]V, e error) {
+			errs = errors.Join(errs, e)
+			ret = util.MergeMap(ret, r)
+		}
+
 		if c.local != nil {
-			ret = w.mGetLocal(miss, false)
+			process(w.mGetLocal(miss, false))
 			if len(miss) == 0 {
 				return ret, nil
 			}
 		}
 
 		if c.remote != nil {
-			ret = util.MergeMap(ret, w.mGetRemote(ctx, miss))
+			process(w.mGetRemote(ctx, miss))
 			if len(miss) == 0 {
 				return ret, nil
 			}
 		}
 
 		if fn != nil {
-			ret = util.MergeMap(ret, w.mQueryAndSetCache(ctx, miss, fn))
+			process(w.mQueryAndSetCache(ctx, miss, fn))
 		}
 
 		return ret, nil
 	})
 
 	if err != nil {
-		return result
+		errs = errors.Join(errs, err)
+		return
 	}
 
-	return util.MergeMap(result, v.(map[K]V))
+	return util.MergeMap(result, v.(map[K]V)), errs
 }
 
-func (w *T[K, V]) mGetLocal(miss map[string]K, skipMissStats bool) map[K]V {
+func (w *T[K, V]) mGetLocal(miss map[string]K, skipMissStats bool) (result map[K]V, errs error) {
 	c := w.Cache.(*jetCache)
 
-	result := make(map[K]V, len(miss))
+	result = make(map[K]V, len(miss))
 	for missKey, missId := range miss {
 		if b, ok := c.local.Get(missKey); ok {
 			delete(miss, missKey)
@@ -132,7 +154,7 @@ func (w *T[K, V]) mGetLocal(miss map[string]K, skipMissStats bool) map[K]V {
 			}
 			var varT V
 			if err := c.Unmarshal(b, &varT); err != nil {
-				logger.Warn("mGetLocal#c.Unmarshal(%s) error(%v)", missKey, err)
+				errs = errors.Join(errs, fmt.Errorf("mGetLocal#c.Unmarshal(%s) error(%v)", missKey, err))
 			} else {
 				result[missId] = varT
 			}
@@ -144,10 +166,10 @@ func (w *T[K, V]) mGetLocal(miss map[string]K, skipMissStats bool) map[K]V {
 		}
 	}
 
-	return result
+	return
 }
 
-func (w *T[K, V]) mGetRemote(ctx context.Context, miss map[string]K) map[K]V {
+func (w *T[K, V]) mGetRemote(ctx context.Context, miss map[string]K) (result map[K]V, errs error) {
 	c := w.Cache.(*jetCache)
 
 	missKeys := make([]string, 0, len(miss))
@@ -157,11 +179,11 @@ func (w *T[K, V]) mGetRemote(ctx context.Context, miss map[string]K) map[K]V {
 
 	cacheValues, err := c.remote.MGet(ctx, missKeys...)
 	if err != nil {
-		logger.Warn("mGetRemote#c.Remote.MGet error(%v)", err)
-		return nil
+		errs = errors.Join(errs, fmt.Errorf("mGetRemote#c.Remote.MGet error(%v)", err))
+		return
 	}
 
-	result := make(map[K]V, len(cacheValues))
+	result = make(map[K]V, len(cacheValues))
 	for missKey, missId := range miss {
 		if val, ok := cacheValues[missKey]; ok {
 			delete(miss, missKey)
@@ -173,7 +195,7 @@ func (w *T[K, V]) mGetRemote(ctx context.Context, miss map[string]K) map[K]V {
 			}
 			var varT V
 			if err = c.Unmarshal(b, &varT); err != nil {
-				logger.Warn("mGetRemote#c.Unmarshal(%s) error(%v)", missKey, err)
+				errs = errors.Join(errs, fmt.Errorf("mGetRemote#c.Unmarshal(%s) error(%v)", missKey, err))
 			} else {
 				result[missId] = varT
 				if c.local != nil {
@@ -186,10 +208,10 @@ func (w *T[K, V]) mGetRemote(ctx context.Context, miss map[string]K) map[K]V {
 		}
 	}
 
-	return result
+	return
 }
 
-func (w *T[K, V]) mQueryAndSetCache(ctx context.Context, miss map[string]K, fn func(context.Context, []K) (map[K]V, error)) map[K]V {
+func (w *T[K, V]) mQueryAndSetCache(ctx context.Context, miss map[string]K, fn func(context.Context, []K) (map[K]V, error)) (result map[K]V, errs error) {
 	c := w.Cache.(*jetCache)
 
 	missIds := make([]K, 0, len(miss))
@@ -200,12 +222,12 @@ func (w *T[K, V]) mQueryAndSetCache(ctx context.Context, miss map[string]K, fn f
 	c.statsHandler.IncrQuery()
 	fnValues, err := fn(ctx, missIds)
 	if err != nil {
-		logger.Error("mQueryAndSetCache#fn(%v) error(%v)", missIds, err)
+		errs = errors.Join(errs, fmt.Errorf("mQueryAndSetCache#fn(%v) error(%v)", missIds, err))
 		c.statsHandler.IncrQueryFail(err)
-		return nil
+		return
 	}
 
-	result := make(map[K]V, len(fnValues))
+	result = make(map[K]V, len(fnValues))
 	cacheValues := make(map[string]any, len(miss))
 	placeholderValues := make(map[string]any, len(miss))
 	for missKey, missId := range miss {
@@ -213,7 +235,7 @@ func (w *T[K, V]) mQueryAndSetCache(ctx context.Context, miss map[string]K, fn f
 			result[missId] = val
 			if b, err := c.Marshal(val); err != nil {
 				placeholderValues[missKey] = notFoundPlaceholder
-				logger.Warn("mQueryAndSetCache#c.Marshal error(%v)", err)
+				errs = errors.Join(errs, fmt.Errorf("mQueryAndSetCache#c.Marshal error(%v)", err))
 			} else {
 				cacheValues[missKey] = b
 			}
@@ -238,12 +260,12 @@ func (w *T[K, V]) mQueryAndSetCache(ctx context.Context, miss map[string]K, fn f
 	if c.remote != nil {
 		if len(cacheValues) > 0 {
 			if err = c.remote.MSet(ctx, cacheValues, c.remoteExpiry); err != nil {
-				logger.Warn("mQueryAndSetCache#remote.MSet error(%v)", err)
+				errs = errors.Join(errs, fmt.Errorf("mQueryAndSetCache#c.Remote.MSet error(%v)", err))
 			}
 		}
 		if len(placeholderValues) > 0 {
 			if err = c.remote.MSet(ctx, placeholderValues, c.notFoundExpiry); err != nil {
-				logger.Warn("mQueryAndSetCache#remote.MSet error(%v)", err)
+				errs = errors.Join(errs, fmt.Errorf("mQueryAndSetCache#c.Remote.MSet error(%v)", err))
 			}
 		}
 		if c.isSyncLocal() {
@@ -255,5 +277,5 @@ func (w *T[K, V]) mQueryAndSetCache(ctx context.Context, miss map[string]K, fn f
 		}
 	}
 
-	return result
+	return
 }
