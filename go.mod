@@ -3,7 +3,7 @@ module github.com/mgtv-tech/jetcache-go
 go 1.22
 
 require (
-	github.com/alicebob/miniredis/v2 v2.33.0
+	github.com/alicebob/miniredis/v2 v2.35.0
 	github.com/bytedance/sonic v1.12.3
 	github.com/coocood/freecache v1.2.4
 	github.com/dgraph-io/ristretto/v2 v2.1.0
@@ -18,7 +18,6 @@ require (
 )
 
 require (
-	github.com/alicebob/gopher-json v0.0.0-20200520072559-a9ecdc9d1d3a // indirect
 	github.com/bytedance/sonic/loader v0.2.0 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/cloudwego/base64x v0.1.4 // indirect
