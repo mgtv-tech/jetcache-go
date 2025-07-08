@@ -1,9 +1,13 @@
 package cache
 
 import (
+	"fmt"
 	"time"
 
+	"github.com/mgtv-tech/jetcache-go/encoding"
+	_ "github.com/mgtv-tech/jetcache-go/encoding/json"
 	"github.com/mgtv-tech/jetcache-go/encoding/msgpack"
+	_ "github.com/mgtv-tech/jetcache-go/encoding/sonic"
 	"github.com/mgtv-tech/jetcache-go/local"
 	"github.com/mgtv-tech/jetcache-go/remote"
 	"github.com/mgtv-tech/jetcache-go/stats"
@@ -111,6 +115,9 @@ func newOptions(opts ...Option) Options {
 	}
 	if o.separator == "" && !o.separatorDisabled {
 		o.separator = defaultSeparator
+	}
+	if encoding.GetCodec(o.codec) == nil {
+		panic(fmt.Sprintf("encoding %s is not registered, please register it first", o.codec))
 	}
 	return o
 }

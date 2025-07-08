@@ -124,6 +124,16 @@ func TestCacheOptions(t *testing.T) {
 		o := newOptions(WithSeparatorDisabled(true), WithSeparator(":"))
 		assert.Equal(t, "", o.separator)
 	})
+
+	t.Run("with registered codec", func(t *testing.T) {
+		assert.NotPanics(t, func() { newOptions(WithCodec("sonic")) })
+		assert.NotPanics(t, func() { newOptions(WithCodec("json")) })
+		assert.NotPanics(t, func() { newOptions(WithCodec("msgpack")) })
+	})
+
+	t.Run("with not registered codec", func(t *testing.T) {
+		assert.Panics(t, func() { newOptions(WithCodec("not-registered")) })
+	})
 }
 
 func TestCacheOptionsRefreshDuration(t *testing.T) {
