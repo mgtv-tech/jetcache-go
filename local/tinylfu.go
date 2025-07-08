@@ -1,10 +1,10 @@
 package local
 
 import (
-	"math/rand"
 	"time"
 
 	"github.com/dgraph-io/ristretto/v2"
+	"github.com/mgtv-tech/jetcache-go/util"
 )
 
 const (
@@ -15,7 +15,7 @@ const (
 var _ Local = (*TinyLFU)(nil)
 
 type TinyLFU struct {
-	rand   *rand.Rand
+	rand   *util.SafeRand
 	cache  *ristretto.Cache[string, []byte]
 	ttl    time.Duration
 	offset time.Duration
@@ -39,7 +39,7 @@ func NewTinyLFU(size int, ttl time.Duration) *TinyLFU {
 	}
 
 	return &TinyLFU{
-		rand:   rand.New(rand.NewSource(time.Now().UnixNano())),
+		rand:   util.NewSafeRand(),
 		cache:  cache,
 		ttl:    ttl,
 		offset: offset,
