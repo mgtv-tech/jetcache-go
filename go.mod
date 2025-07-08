@@ -1,8 +1,6 @@
 module github.com/mgtv-tech/jetcache-go
 
-go 1.21
-
-toolchain go1.21.13
+go 1.23.0
 
 require (
 	github.com/alicebob/miniredis/v2 v2.33.0
@@ -16,7 +14,7 @@ require (
 	github.com/stretchr/testify v1.10.0
 	github.com/vmihailenco/msgpack/v5 v5.4.1
 	golang.org/x/exp v0.0.0-20240904232852-e7e105dedf7e
-	golang.org/x/sync v0.8.0
+	golang.org/x/sync v0.12.0
 )
 
 require (
@@ -38,9 +36,9 @@ require (
 	github.com/vmihailenco/tagparser/v2 v2.0.0 // indirect
 	github.com/yuin/gopher-lua v1.1.1 // indirect
 	golang.org/x/arch v0.0.0-20210923205945-b76863e36670 // indirect
-	golang.org/x/net v0.28.0 // indirect
-	golang.org/x/sys v0.29.0 // indirect
-	golang.org/x/text v0.17.0 // indirect
+	golang.org/x/net v0.38.0 // indirect
+	golang.org/x/sys v0.31.0 // indirect
+	golang.org/x/text v0.23.0 // indirect
 	gopkg.in/tomb.v1 v1.0.0-20141024135613-dd632973f1e7 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
