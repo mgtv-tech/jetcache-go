@@ -1,20 +1,20 @@
 module github.com/mgtv-tech/jetcache-go
 
-go 1.22
+go 1.21
 
 require (
 	github.com/alicebob/miniredis/v2 v2.35.0
 	github.com/bytedance/sonic v1.13.3
 	github.com/coocood/freecache v1.2.4
 	github.com/dgraph-io/ristretto/v2 v2.1.0
-	github.com/klauspost/compress v1.18.0
+	github.com/klauspost/compress v1.17.11
 	github.com/onsi/ginkgo v1.16.5
 	github.com/onsi/gomega v1.34.1
 	github.com/redis/go-redis/v9 v9.11.0
 	github.com/stretchr/testify v1.10.0
 	github.com/vmihailenco/msgpack/v5 v5.4.1
 	golang.org/x/exp v0.0.0-20240904232852-e7e105dedf7e
-	golang.org/x/sync v0.10.0
+	golang.org/x/sync v0.11.0
 )
 
 require (
