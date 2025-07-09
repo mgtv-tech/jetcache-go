@@ -9,14 +9,11 @@ on:
   pull_request:
     branches: [ "main" ]
 
-env:
-  GOTOOLCHAIN: local
-
 jobs:
   build:
     strategy:
       matrix:
-        go: [1.22.x, 1.23.x, 1.24.x]
+        go: [ 1.22.x, 1.23.x, 1.24.x ]
     name: build & test
     runs-on: ubuntu-latest
     services:
@@ -31,30 +28,32 @@ jobs:
           - 6379:6379
 
     steps:
-    - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ matrix.go }}
 
-    - name: Set up Go
-      uses: actions/setup-go@v4
-      with:
-        go-version: ${{ matrix.go }}
+      - name: Cache Go modules
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
 
-    - name: Module cache
-      uses: actions/cache@v3
-      with:
-        path: |
-          ~/.cache/go-build
-          ~/go/pkg/mod
-        key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
-        restore-keys: |
-          ${{ runner.os }}-go    
+      - name: Build
+        run: go build -v ./...
 
-    - name: Build
-      run: go build -v ./...
+      - name: Test
+        run: make test-coverage
 
-    - name: Run coverage
-      run: make test-coverage
-
-    - name: Upload coverage reports to Codecov
-      uses: codecov/codecov-action@v3
-      env:
-        CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+      - name: Upload coverage reports to Codecov
+        uses: codecov/codecov-action@v4
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+        with:
+          file: ./coverage.txt
+          flags: unittests
