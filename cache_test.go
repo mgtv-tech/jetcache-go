@@ -202,7 +202,7 @@ var _ = Describe("Cache", func() {
 			Expect(n).To(Equal(int64(124)))
 		})
 
-		Describe("Generic Set/Get/MGet func", func() {
+		Describe("Generic Set/Get/MGet/Delete/Exists func", func() {
 			It("cache hit with set first", func() {
 				cacheT := NewT[int, *object](cache)
 
@@ -372,6 +372,20 @@ var _ = Describe("Cache", func() {
 					Expect(err).NotTo(HaveOccurred())
 					Expect(ret).To(Equal(map[int]*object{1: {Str: "str1", Num: 1}, 2: {Str: "str2", Num: 2}}))
 				}
+			})
+
+			It("delete key and not exists", func() {
+				cacheT := NewT[int, *object](cache)
+
+				err := cacheT.Set(context.Background(), "key", 1, &object{Str: "str1", Num: 1})
+				Expect(err).NotTo(HaveOccurred())
+				Expect(cache.Exists(ctx, "key:1")).To(BeTrue())
+				Expect(cacheT.Exists(ctx, "key", 1)).To(BeTrue())
+
+				err = cacheT.Delete(ctx, "key", 1)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(cache.Exists(ctx, "key:1")).To(BeFalse())
+				Expect(cacheT.Exists(ctx, "key", 1)).To(BeFalse())
 			})
 		})
 

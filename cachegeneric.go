@@ -27,9 +27,7 @@ func NewT[K constraints.Ordered, V any](cache Cache) *T[K, V] {
 // The expiration time of the cached value is determined by the cache configuration.
 func (w *T[K, V]) Set(ctx context.Context, key string, id K, v V) error {
 	c := w.Cache.(*jetCache)
-
-	combKey := fmt.Sprintf("%s%s%v", key, c.separator, id)
-	return w.Cache.Set(ctx, combKey, Value(v))
+	return w.Cache.Set(ctx, w.combKey(c, key, id), Value(v))
 }
 
 // Get retrieves the value associated with the given `key` and `id`.
@@ -44,8 +42,7 @@ func (w *T[K, V]) Get(ctx context.Context, key string, id K, fn func(context.Con
 	c := w.Cache.(*jetCache)
 
 	var varT V
-	combKey := fmt.Sprintf("%s%s%v", key, c.separator, id)
-	err := w.Once(ctx, combKey, Value(&varT), Do(func(ctx context.Context) (any, error) {
+	err := w.Once(ctx, w.combKey(c, key, id), Value(&varT), Do(func(ctx context.Context) (any, error) {
 		return fn(ctx, id)
 	}))
 
@@ -78,8 +75,7 @@ func (w *T[K, V]) MGetWithErr(ctx context.Context, key string, ids []K, fn func(
 
 	miss := make(map[string]K, len(ids))
 	for _, missId := range ids {
-		missKey := fmt.Sprintf("%s%s%v", key, c.separator, missId)
-		miss[missKey] = missId
+		miss[w.combKey(c, key, missId)] = missId
 	}
 
 	if c.local != nil {
@@ -278,4 +274,20 @@ func (w *T[K, V]) mQueryAndSetCache(ctx context.Context, miss map[string]K, fn f
 	}
 
 	return
+}
+
+// Delete deletes cached val with the given `key` and `id`.
+func (w *T[K, V]) Delete(ctx context.Context, key string, id K) error {
+	c := w.Cache.(*jetCache)
+	return c.Delete(ctx, w.combKey(c, key, id))
+}
+
+// Exists reports whether val for the given `key` and `id` exists.
+func (w *T[K, V]) Exists(ctx context.Context, key string, id K) bool {
+	c := w.Cache.(*jetCache)
+	return c.Exists(ctx, w.combKey(c, key, id))
+}
+
+func (w *T[K, V]) combKey(c *jetCache, key string, id K) string {
+	return fmt.Sprintf("%s%s%v", key, c.separator, id)
 }
