@@ -1,6 +1,6 @@
 module github.com/mgtv-tech/jetcache-go
 
-go 1.21
+go 1.23.0
 
 require (
 	github.com/alicebob/miniredis/v2 v2.35.0
@@ -14,7 +14,7 @@ require (
 	github.com/stretchr/testify v1.10.0
 	github.com/vmihailenco/msgpack/v5 v5.4.1
 	golang.org/x/exp v0.0.0-20240904232852-e7e105dedf7e
-	golang.org/x/sync v0.11.0
+	golang.org/x/sync v0.16.0
 )
 
 require (
