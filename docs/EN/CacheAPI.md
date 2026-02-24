@@ -1,208 +1,126 @@
-<!-- TOC -->
-* [Cache Interface](#cache-interface)
-  * [Set Interface](#set-interface)
-  * [Once Interface](#once-interface)
-* [Generic Interfaces](#generic-interfaces)
-  * [MGet Bulk Query](#mget-bulk-query)
-<!-- TOC -->
+# Cache API Reference
 
+This page is the compact API reference for `jetcache-go`.
 
-# Cache Interface
+## Cache Interface
 
-The following interface, provided by `Cache`, is largely consistent with [go-redis/cache](https://github.com/go-redis/cache). However, some interfaces offer enhanced capabilities.
+`cache.New(...)` returns a `Cache` with these methods:
 
-```go
-// Set sets cache using ItemOption.
-func Set(ctx context.Context, key string, opts ...ItemOption) error
+| Method | Purpose |
+| --- | --- |
+| `Set(ctx, key, opts...)` | Write cache value. |
+| `Once(ctx, key, opts...)` | Cache-aside read with singleflight. |
+| `Get(ctx, key, val)` | Read and unmarshal value. |
+| `GetSkippingLocal(ctx, key, val)` | Read from remote path only. |
+| `Delete(ctx, key)` | Delete local + remote cache. |
+| `DeleteFromLocalCache(key)` | Delete local cache only. |
+| `Exists(ctx, key)` | Check key existence by read path. |
+| `TaskSize()` | Auto-refresh task count in current process. |
+| `CacheType()` | `local`, `remote`, or `both`. |
+| `Close()` | Stop refresh/event loops and release resources. Call once per cache instance lifecycle. |
 
-// Once retrieves cache using ItemOption.  Single-flight mode; automatic cache refresh can be enabled.
-func Once(ctx context.Context, key string, opts ...ItemOption) error
+## ItemOption
 
-// Delete deletes cache.
-func Delete(ctx context.Context, key string) error
+| Option | Type | Notes |
+| --- | --- | --- |
+| `Value(v)` | `any` | Set value for `Set`; output target for `Once`. |
+| `Do(fn)` | `func(context.Context) (any, error)` | Load callback on miss. Has higher priority than `Value`. |
+| `TTL(d)` | `time.Duration` | Remote TTL. `0` uses default. `<0` means do not write remote. |
+| `SetNX(true)` | `bool` | Remote only. Set if key does not exist. |
+| `SetXX(true)` | `bool` | Remote only. Set if key exists. |
+| `SkipLocal(true)` | `bool` | Skip local cache on read path. |
+| `Refresh(true)` | `bool` | Enable refresh task for this key (`WithRefreshDuration` required, and should be paired with `Do(...)`). |
 
-// DeleteFromLocalCache deletes the local cache.
-func DeleteFromLocalCache(key string)
-
-// Exists checks if cache exists.
-func Exists(ctx context.Context, key string) bool
-
-// Get retrieves cache and serializes the result to `val`.
-func Get(ctx context.Context, key string, val any) error
-
-// GetSkippingLocal retrieves remote cache (skipping local cache).
-func GetSkippingLocal(ctx context.Context, key string, val any) error
-
-// TaskSize returns the number of cache auto-refresh tasks (for this instance and process).
-func TaskSize() int
-
-// CacheType returns the cache type.  Options are `Both`, `Remote`, and `Local`.
-func CacheType() string
-
-// Close closes cache resources.  This should be called when automatic cache refresh is enabled and is no longer needed.
-func Close()
-```
-
-## Set Interface
-
-This interface is used to set cache entries. It supports various options, such as setting the value (`Value`), remote expiration time (`TTL`), a fetch function (`Do`), and atomic operations for `Remote` caches.
-
-Function Signature:
+## Core Example
 
 ```go
-func Set(ctx context.Context, key string, opts ...ItemOption) error
-```
+package main
 
-Parameters:
+import (
+	"context"
+	"time"
 
-- `ctx`: `context.Context`, the request context. Used for cancellation or timeout settings.
-- `key`: `string`, the cache key.
-- `opts`: `...ItemOption`, a variadic parameter list for configuring various options of the cache item.  The following options are supported:
-  - `Value(value any)`: Sets the cache value.
-  - `TTL(duration time.Duration)`: Sets the expiration time for the remote cache item. (Local cache expiration time is uniformly set when building the Local cache instance.)
-  - `Do(fn func(context.Context) (any, error))`: Uses the given fetch function `fn` to retrieve the value; this takes precedence over `Value`.
-  - `SetNX(flag bool)`: Sets the cache item only if the key does not exist.  Applicable to remote caches to prevent overwriting existing values.
-  - `SetXX(flag bool)`: Sets the cache item only if the key exists. Applicable to remote caches to ensure only existing values are updated.
+	cache "github.com/mgtv-tech/jetcache-go"
+	"github.com/mgtv-tech/jetcache-go/local"
+	"github.com/mgtv-tech/jetcache-go/remote"
+	"github.com/redis/go-redis/v9"
+)
 
-Return Value:
+func main() {
+	rdb := redis.NewClient(&redis.Options{Addr: "127.0.0.1:6379"})
+	c := cache.New(
+		cache.WithName("api-demo"),
+		cache.WithLocal(local.NewTinyLFU(100_000, time.Minute)),
+		cache.WithRemote(remote.NewGoRedisV9Adapter(rdb)),
+	)
+	defer c.Close()
 
-- `error`: Returns an error if setting the cache fails.
+	// Set
+	_ = c.Set(context.Background(), "user:1001", cache.Value("alice"), cache.TTL(30*time.Minute))
 
-Example 1: Setting a cache value using `Value`
+	// Once
+	var user string
+	_ = c.Once(context.Background(), "user:1002",
+		cache.Value(&user),
+		cache.Do(func(context.Context) (any, error) {
+			return "bob", nil
+		}),
+	)
 
-```go
-obj := struct {
-    Name string
-    Age  int
-}{Name: "John Doe", Age: 30}
-
-err := cache.Set(ctx, key, cache.Value(&obj), cache.TTL(time.Hour))
-if err != nil {
-    // Handle error
+	// Delete
+	_ = c.Delete(context.Background(), "user:1001")
 }
 ```
 
+## `Once` Execution Model
 
-Example 2: Retrieving and setting a cache value using the `Do` function
-
-```go
-err := cache.Once(ctx, key, cache.TTL(time.Hour), cache.Do(func(ctx context.Context) (any, error) {
-    return fetchData(ctx)
-}))
-if err != nil {
-    // Handle error
-}
+```mermaid
+flowchart TD
+    A[Once key] --> B[Read local]
+    B -->|miss| C[Read remote]
+    C -->|miss| D[singleflight Do fn]
+    D --> E[Write cache]
+    E --> F[Return value]
+    B -->|hit| F
+    C -->|hit| F
 ```
 
-Example 3: Performing an atomic operation using `SetNX` (sets only if the key doesn't exist)
+## Generic API
 
-```go
-err := cache.Set(ctx, key, cache.TTL(time.Hour), cache.Value(obj), cache.SetNX(true))
-if err != nil {
-    // Handle error, e.g., key already exists
-}
+Use `NewT[K, V]` with a `cache.Cache` instance for typed access:
+
+| Method | Purpose |
+| --- | --- |
+| `Set(ctx, key, id, v)` | Typed set. |
+| `Get(ctx, key, id, fn)` | Typed once-get with loader. |
+| `Delete(ctx, key, id)` | Typed delete. |
+| `Exists(ctx, key, id)` | Typed existence check. |
+| `MGet(ctx, key, ids, fn)` | Typed batch read (best-effort). |
+| `MGetWithErr(ctx, key, ids, fn)` | Typed batch read with explicit errors. |
+
+`MGet` load callback (`fn`) and remote pipeline optimization are available since `v1.1.0+`.
+
+Typed `MGet` flow:
+
+```mermaid
+flowchart LR
+    A[IDs] --> B[Local scan]
+    B --> C[Remote pipeline MGet]
+    C --> D[Miss set]
+    D --> E[singleflight load fn]
+    E --> F[Write back]
+    F --> G[Merge result]
 ```
 
+## `MGet` Semantics
 
-## Once Interface
+- `MGet(...)` is best-effort by default and prioritizes returning available data.
+- Missed IDs are loaded through `fn` (when provided), then written back to cache.
+- For IDs absent in `fn` results, jetcache writes short-lived not-found placeholders to avoid repeated penetration.
+- Use `MGetWithErr(...)` when upstream must inspect partial failures explicitly.
 
-This interface retrieves the value associated with a given `key` from the cache. If a cache miss occurs, the `Do` function is executed, the result is cached, and then returned.  It ensures that for a given `key`, only one execution is in progress at any time. If duplicate requests occur, subsequent callers will wait for the original request to complete and receive the same result.  Automatic cache refresh can be enabled by setting `Refresh(true)`.
+## Error Semantics
 
-`Once` Interface: Distributed Cache – A Weapon Against Cache Piercing - `singleflight`
-
-![singleflight](/docs/images/singleflight.png)
-
-> `singleflight`, provided in the Go standard library ("golang.org/x/sync/singleflight"), offers a mechanism to suppress redundant function calls. By assigning a key to each function call, concurrent calls with the same key will only be executed once, returning the same result.  Essentially, it reuses the results of function calls.
-
-
-`Once` Interface: Distributed Cache – A Weapon Against Cache Piercing - `auto refresh`
-
-![autoRefresh](/docs/images/autorefresh.png)
-
-> The `Once` interface provides the ability to automatically refresh the cache. This is intended to prevent cascading failures that can overwhelm the database when caches expire.  Automatic refresh is suitable for scenarios with a small number of keys, low real-time requirements, and very high loading overhead. The code below (Example 1) specifies a refresh every minute and stops refreshing after an hour without access. If the cache is Redis or a multi-level cache where the last level is Redis, the cache loading behavior is globally unique.  That is, regardless of the number of servers, only one server refreshes at a time to reduce the load on the backend.
-
-> Regarding the use case for the auto-refresh feature ("suitable for scenarios with a small number of keys, low real-time requirements, and very high loading overhead"), the "small number of keys" requires further clarification. To determine the appropriate number of keys, a model can be established. For example, when `refreshConcurrency=10`, there are 5 application servers, the average loading time for each key is 2 seconds, and `refreshDuration=30s`, the theoretically maximum number of keys that can be refreshed is 30 / 2 * 10 * 5 = 750.
-
-
-> Regarding the AutoRefresh feature's usage scenario ("Suitable for scenarios with few keys, low real-time requirements, and very high loading overhead"), "few keys" requires clarification.
-> To determine an appropriate number of keys, you can create a model. For example, with refreshConcurrency=10, 5 application servers, an average loading time of 2 seconds per key, and refreshDuration=30s, the theoretical maximum number of refreshable keys is 30 / 2 * 10 * 5 = 750.
-
-Function Signature:
-
-```go
-func Once(ctx context.Context, key string, opts ...ItemOption) error
-```
-
-Parameters:
-
-- `ctx`: `context.Context`, the request context. Used for cancellation or timeout settings.
-- `key`: `string`, the cache key.
-- `opts`: `...ItemOption`, a variadic parameter list for configuring various options of the cache item.  The following options are supported:
-  - `Value(value any)`: Sets the cache value.
-  - `TTL(duration time.Duration)`: Sets the expiration time for the remote cache item. (Local cache expiration time is uniformly set when building the Local cache instance.)
-  - `Do(fn func(context.Context) (any, error))`: Uses the given fetch function `fn` to retrieve the value; this takes precedence over `Value`.
-  - `SkipLocal(flag bool)`: Whether to skip the local cache.
-  - `Refresh(refresh bool)`: Whether to enable automatic cache refresh.  Works with the Cache configuration parameter `config.refreshDuration` to set the refresh interval.
-
-Return Value:
-
-- `error`: Returns an error if retrieving the cache fails.
-
-Example 1: Querying data using `Once` and enabling automatic cache refresh
-
-```go
-mycache := cache.New(cache.WithName("any"),
-    // ...
-    // cache.WithRefreshDuration sets the asynchronous refresh interval
-    cache.WithRefreshDuration(time.Minute),
-    // cache.WithStopRefreshAfterLastAccess sets the time to cancel refresh tasks after a cache key has not been accessed
-    cache.WithStopRefreshAfterLastAccess(time.Hour))
-
-// The `Once` interface enables automatic refresh via `cache.Refresh(true)`
-err := mycache.Once(ctx, key, cache.Value(obj), cache.Refresh(true), cache.Do(func(ctx context.Context) (any, error) {
-    return fetchData(ctx)
-}))
-if err != nil {
-    // Handle error
-}
-
-mycache.Close()
-```
-
-
-# Generic Interfaces
-
-```go
-// Set generically sets cache entries.
-func (w *T[K, V]) Set(ctx context.Context, key string, id K, v V) error
-
-// Get generically retrieves cache entries (underlying call to Once interface).
-func (w *T[K, V]) Get(ctx context.Context, key string, id K, fn func(context.Context, K) (V, error)) (V, error)
-
-// MGet generically retrieves multiple cache entries.
-func (w *T[K, V]) MGet(ctx context.Context, key string, ids []K, fn func(context.Context, []K) (map[K]V, error)) (result map[K]V)
-```
-
-## MGet Bulk Query
-
-`MGet`, leveraging Go generics and the `Load` function, provides a user-friendly mechanism for bulk querying entities by ID in a multi-level cache. If the cache is Redis or a multi-level cache where the last level is Redis, read/write operations are performed using pipelining to improve performance. When a cache miss occurs in the local cache and a query to Redis and the database is required, the keys are sorted, and a single-flight (`singleflight`) call is used.  It's important to note that for exceptional scenarios (I/O errors, serialization errors, etc.), our design prioritizes providing a degraded service to prevent cache penetration.
-
-![mget](/docs/images/mget.png)
-
-Function Signature:
-
-```go
-func (w *T[K, V]) MGet(ctx context.Context, key string, ids []K, fn func(context.Context, []K) (map[K]V, error)) (result map[K]V)
-func (w *T[K, V]) MGetWithErr(ctx context.Context, key string, ids []K, fn func(context.Context, []K) (map[K]V, error)) (result map[K]V, err error)
-```
-
-Parameters:
-
-- `ctx`: `context.Context`, the request context. Used for cancellation or timeout settings.
-- `key`: `string`, the cache key.
-- `ids`: `[]K`, the IDs of the cache objects.
-- `fn func(context.Context, []K) (map[K]V, error)`: The fetch function. Used to query data and set the cache for IDs that miss the cache.
-
-Return Value:
-
-- `map[K]V`: Returns a map of key-value pairs with values.
+- `Once(...)` hides raw cache miss and runs `Do(...)`.
+- If `WithErrNotFound(err)` is set and `Do(...)` returns that error, jetcache writes placeholder and returns the same error on subsequent reads.
+- `MGet(...)` is best-effort by default and may cache placeholders for missing IDs. Use `MGetWithErr(...)` when upstream needs full error visibility.

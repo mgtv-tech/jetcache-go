@@ -1,117 +1,223 @@
-<!-- TOC -->
-* [Introduction](#introduction)
-* [Multiple Serialization Methods](#multiple-serialization-methods)
-* [Local and Remote Cache Options](#local-and-remote-cache-options)
-* [Metrics Collection and Statistics](#metrics-collection-and-statistics)
-* [Custom Logger](#custom-logger)
-<!-- TOC -->
+# Embedded Components Guide
 
-# Introduction
+`jetcache-go` is interface-driven. You can use built-in components or replace each part with your own implementation.
 
-`jetcache-go` provides a unified interface for various built-in components, simplifying integration and providing examples for developers to create their own components.
+## Component Map
 
+| Layer | Interface | Built-in Choices |
+| --- | --- | --- |
+| Local cache | `local.Local` | `local.NewTinyLFU`, `local.NewFreeCache` |
+| Remote cache | `remote.Remote` | `remote.NewGoRedisV9Adapter` |
+| Codec | `encoding.Codec` | `msgpack` (default), `json`, `sonic` |
+| Metrics | `stats.Handler` | `stats.NewStatsLogger`, multi-handler chain |
+| Logging | `logger.Logger` | default logger, replaceable |
 
-# Multiple Serialization Methods
+## Local Cache
 
-`jetcache-go` supports several serialization methods, offering flexibility and performance optimization depending on your needs.  Here's a comparison:
-
-| Codec Method  | Description                                           | Advantages                             |
-|---------------|-------------------------------------------------------|----------------------------------------|
-| `native json` | Golang's built-in JSON serialization tool             | Simplicity, readily available          |
-| `msgpack`     | msgpack with snappy compression (for data > 64 bytes) | High performance, low memory footprint |
-| `sonic`       | ByteDance's high-performance JSON serialization tool  | High performance                       |
-
-
-You can also customize your serialization by implementing the `encoding.Codec` interface and registering it using `encoding.RegisterCodec`.  This allows for integration with other serialization libraries or custom serialization logic tailored to your specific data structures.
-
+`local.Local`:
 
 ```go
-
-import (
-    _ "github.com/mgtv-tech/jetcache-go/encoding/yourCodec"
-)
-
-// Register your codec
-encoding.RegisterCodec(yourCodec.Name)
-
-mycache := cache.New(cache.WithName("any"),
-    cache.WithRemote(...),
-    cache.WithCodec(yourCodec.Name))
-```
-
-
-# Local and Remote Cache Options
-
-`jetcache-go` offers a variety of local and remote cache implementations, providing flexibility to choose the best option for your application's needs.
-
-| Name                                                | Type   | Features                                                     |
-|-----------------------------------------------------|--------|--------------------------------------------------------------|
-| [ristretto](https://github.com/dgraph-io/ristretto) | Local  | High performance, high hit ratio                             |
-| [freecache](https://github.com/coocood/freecache)   | Local  | Zero garbage collection overhead, strict memory usage limits |
-| [go-redis](https://github.com/redis/go-redis)       | Remote | Popular Go Redis client                                      |
-
-
-You can also implement your own local and remote caches by implementing the `remote.Remote` and `local.Local` interfaces respectively.
-
-
-> **FreeCache Usage Notes:**
->
-> * Keys must be less than 65535 bytes.  Larger keys will result in an error ("The key is larger than 65535").  
-> * Values must be less than 1/1024 of the total cache size. Larger values will result in an error ("The entry size needs to be less than 1/1024 of the cache size").  
-> * Embedded FreeCache instances share an internal `innerCache` instance. This prevents excessive memory consumption when multiple cache instances use FreeCache.  Therefore, the memory capacity and expiration time will be determined by the configuration of the first created instance.
-
-
-# Metrics Collection and Statistics
-
-`jetcache-go` provides several ways to collect and report cache metrics:
-
-| Name              | Type     | Description                                                                                                                     |
-|-------------------|----------|---------------------------------------------------------------------------------------------------------------------------------|
-| `logStats`        | Built-in | Default metrics collector; statistics are printed to the log.                                                                   |
-| `PrometheusStats` | Plugin   | Statistics plugin provided by [jetcache-go-plugin](https://github.com/mgtv-tech/jetcache-go-plugin) for Prometheus integration. |
-
-
-You can also create custom metrics collectors by implementing the `stats.Handler` interface.
-
-
-Example: Using multiple Metrics collectors simultaneously
-
-```go
-import (
-    "context"
-    "time"
-
-    "github.com/mgtv-tech/jetcache-go"
-    "github.com/mgtv-tech/jetcache-go/remote"
-    "github.com/redis/go-redis/v9"
-    pstats "github.com/mgtv-tech/jetcache-go-plugin/stats"
-    "github.com/mgtv-tech/jetcache-go/stats"
-)
-
-mycache := cache.New(cache.WithName("any"),
-	cache.WithRemote(remote.NewGoRedisV9Adapter(ring)),
-    cache.WithStatsHandler(
-        stats.NewHandles(false,
-            stats.NewStatsLogger(cacheName), 
-            pstats.NewPrometheus(cacheName))))
-
-obj := struct {
-    Name string
-    Age  int
-}{Name: "John Doe", Age: 30}
-
-err := mycache.Set(context.Background(), "mykey", cache.Value(&obj), cache.TTL(time.Hour))
-if err != nil {
-    // Handle error
+type Local interface {
+	Set(key string, data []byte)
+	Get(key string) ([]byte, bool)
+	Del(key string)
 }
 ```
 
-# Custom Logger
+Built-in local implementations:
+
+- `local.NewTinyLFU(size, ttl)`
+- `local.NewFreeCache(size, ttl, innerKeyPrefix...)`
+
+### TinyLFU notes
+
+- Based on Ristretto.
+- Good default for high hit-ratio workloads.
+- Uses TTL with optional random offset internally.
+
+### FreeCache notes
+
+- Strict memory boundaries.
+- Shared internal cache instance in process (`once.Do(...)`).
+- Practical constraints from FreeCache:
+  - key length must be less than 65535 bytes.
+  - value size must be smaller than 1/1024 of total cache size.
+
+## Remote Cache
+
+`remote.Remote`:
 
 ```go
-import "github.com/mgtv-tech/jetcache-go/logger"
-
-// Set your Logger
-logger.SetDefaultLogger(l logger.Logger)
+type Remote interface {
+	SetEX(ctx context.Context, key string, value any, expire time.Duration) error
+	SetNX(ctx context.Context, key string, value any, expire time.Duration) (bool, error)
+	SetXX(ctx context.Context, key string, value any, expire time.Duration) (bool, error)
+	Get(ctx context.Context, key string) (string, error)
+	Del(ctx context.Context, key string) (int64, error)
+	MGet(ctx context.Context, keys ...string) (map[string]any, error)
+	MSet(ctx context.Context, value map[string]any, expire time.Duration) error
+	Nil() error
+}
 ```
 
+Built-in adapter (runnable):
+
+```go
+package main
+
+import (
+	cache "github.com/mgtv-tech/jetcache-go"
+	"github.com/mgtv-tech/jetcache-go/remote"
+	"github.com/redis/go-redis/v9"
+)
+
+func main() {
+	rdb := redis.NewClient(&redis.Options{Addr: "127.0.0.1:6379"})
+	c := cache.New(cache.WithRemote(remote.NewGoRedisV9Adapter(rdb)))
+	defer c.Close()
+}
+```
+
+## Codec
+
+`encoding.Codec`:
+
+```go
+type Codec interface {
+	Marshal(v any) ([]byte, error)
+	Unmarshal(data []byte, v any) error
+	Name() string
+}
+```
+
+Built-in codecs are imported by default init side effects:
+
+- `msgpack` (default)
+- `json`
+- `sonic`
+
+Choose codec (runnable):
+
+```go
+package main
+
+import (
+	cache "github.com/mgtv-tech/jetcache-go"
+	"github.com/mgtv-tech/jetcache-go/remote"
+	"github.com/redis/go-redis/v9"
+)
+
+func main() {
+	rdb := redis.NewClient(&redis.Options{Addr: "127.0.0.1:6379"})
+	c := cache.New(
+		cache.WithRemote(remote.NewGoRedisV9Adapter(rdb)),
+		cache.WithCodec("json"),
+	)
+	defer c.Close()
+}
+```
+
+Register custom codec (runnable):
+
+```go
+package main
+
+import (
+	stdjson "encoding/json"
+
+	cache "github.com/mgtv-tech/jetcache-go"
+	"github.com/mgtv-tech/jetcache-go/encoding"
+)
+
+type myCodec struct{}
+
+func (myCodec) Marshal(v any) ([]byte, error)   { return stdjson.Marshal(v) }
+func (myCodec) Unmarshal(b []byte, v any) error { return stdjson.Unmarshal(b, v) }
+func (myCodec) Name() string                    { return "my-json" }
+
+func main() {
+	encoding.RegisterCodec(myCodec{})
+	c := cache.New(cache.WithCodec("my-json"))
+	defer c.Close()
+}
+```
+
+## Stats Handler
+
+`stats.Handler`:
+
+```go
+type Handler interface {
+	IncrHit()
+	IncrMiss()
+	IncrLocalHit()
+	IncrLocalMiss()
+	IncrRemoteHit()
+	IncrRemoteMiss()
+	IncrQuery()
+	IncrQueryFail(err error)
+}
+```
+
+Compose multiple handlers (runnable):
+
+```go
+package main
+
+import (
+	cache "github.com/mgtv-tech/jetcache-go"
+	"github.com/mgtv-tech/jetcache-go/remote"
+	"github.com/mgtv-tech/jetcache-go/stats"
+	pstats "github.com/mgtv-tech/jetcache-go-plugin/stats"
+	"github.com/redis/go-redis/v9"
+)
+
+func main() {
+	rdb := redis.NewClient(&redis.Options{Addr: "127.0.0.1:6379"})
+	cacheName := "profile"
+	c := cache.New(
+		cache.WithName(cacheName),
+		cache.WithRemote(remote.NewGoRedisV9Adapter(rdb)),
+		cache.WithStatsHandler(
+			stats.NewHandles(false,
+				stats.NewStatsLogger(cacheName),
+				pstats.NewPrometheus(cacheName),
+			),
+		),
+	)
+	defer c.Close()
+}
+```
+
+## Logger
+
+Replace global logger implementation (runnable):
+
+```go
+package main
+
+import (
+	"log"
+
+	"github.com/mgtv-tech/jetcache-go/logger"
+)
+
+type stdLogger struct{}
+
+func (stdLogger) Debug(format string, v ...any) { log.Printf("[DEBUG] "+format, v...) }
+func (stdLogger) Info(format string, v ...any)  { log.Printf("[INFO] "+format, v...) }
+func (stdLogger) Warn(format string, v ...any)  { log.Printf("[WARN] "+format, v...) }
+func (stdLogger) Error(format string, v ...any) { log.Printf("[ERROR] "+format, v...) }
+
+func main() {
+	logger.SetDefaultLogger(stdLogger{})
+}
+```
+
+## Custom Component Checklist
+
+- Keep implementations thread-safe.
+- Respect context cancellation and timeout in remote methods.
+- Return deterministic `Nil()` error for remote "key not found" semantics.
+- Avoid allocations in hot path (`Get`, `MGet`) where possible.
+- Add unit tests for edge cases: empty value, TTL, timeout, serialization failure.

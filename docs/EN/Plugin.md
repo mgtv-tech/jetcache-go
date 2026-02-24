@@ -1,50 +1,83 @@
-# Overview
+# Plugin Ecosystem
 
-The [jetcache-go-plugin](https://github.com/mgtv-tech/jetcache-go-plugin) project is a plugin maintained for [jetcache-go](https://github.com/mgtv-tech/jetcache-go).
+`jetcache-go-plugin` provides optional integrations maintained by the jetcache team.
 
+- Repository: <https://github.com/mgtv-tech/jetcache-go-plugin>
 
-# Getting started
+## Available Integrations
 
-## Remote Adapter
+| Area | Package | Status | Description |
+| --- | --- | --- | --- |
+| Remote adapter | `github.com/mgtv-tech/jetcache-go-plugin/remote` | Available | Redis adapter for `go-redis/v8`. |
+| Stats | `github.com/mgtv-tech/jetcache-go-plugin/stats` | Available | Prometheus metrics handler. |
+| Local cache | - | Use built-in interfaces | Prefer built-in `local` package or custom `local.Local`. |
+| Codec | - | Use built-in interfaces | Prefer built-in codec package or custom `encoding.Codec`. |
 
-### [redis/go-redis v8](https://github.com/go-redis/redis/v8)
+## Install
+
+```bash
+go get github.com/mgtv-tech/jetcache-go-plugin@latest
+```
+
+## Remote Adapter: go-redis v8
+
+Use this when your project is still on `github.com/go-redis/redis/v8`.
+
 ```go
 import (
-    "github.com/mgtv-tech/jetcache-go"
-    "github.com/mgtv-tech/jetcache-go-plugin/remote"
+	"time"
+
+	cache "github.com/mgtv-tech/jetcache-go"
+	"github.com/mgtv-tech/jetcache-go/local"
+	premote "github.com/mgtv-tech/jetcache-go-plugin/remote"
+	"github.com/go-redis/redis/v8"
 )
 
-mycache := cache.New(cache.WithName("any"),
-    cache.WithRemote(remote.NewGoRedisV8Adapter(ring)),
-    cache.WithLocal(local.NewFreeCache(256*local.MB, time.Minute)),
-    // ...
+rdb := redis.NewClient(&redis.Options{Addr: "127.0.0.1:6379"})
+c := cache.New(
+	cache.WithName("demo"),
+	cache.WithRemote(premote.NewGoRedisV8Adapter(rdb)),
+	cache.WithLocal(local.NewTinyLFU(50_000, time.Minute)),
 )
 ```
 
-## Local
+If you use `go-redis/v9`, use built-in `remote.NewGoRedisV9Adapter(...)` from this repository.
 
-TODO
+## Stats Plugin: Prometheus
 
-## Stats
-
-### [prometheus](https://prometheus.io/)
 ```go
 import (
-    "github.com/mgtv-tech/jetcache-go"
-    "github.com/mgtv-tech/jetcache-go-plugin/remote"
-    pstats "github.com/mgtv-tech/jetcache-go-plugin/stats"
-    "github.com/mgtv-tech/jetcache-go/stats"
+	cache "github.com/mgtv-tech/jetcache-go"
+	"github.com/mgtv-tech/jetcache-go/remote"
+	"github.com/mgtv-tech/jetcache-go/stats"
+	pstats "github.com/mgtv-tech/jetcache-go-plugin/stats"
 )
 
-cacheName := "demo"
-jetcache := cache.New(cache.WithRemote(remote.NewGoRedisV8Adapter(ring)),
-    cache.WithStatsHandler(
-        stats.NewHandles(false,
-            stats.NewStatsLogger(cacheName), 
-            pstats.NewPrometheus(cacheName))))
+cacheName := "order-cache"
+c := cache.New(
+	cache.WithName(cacheName),
+	cache.WithRemote(remote.NewGoRedisV9Adapter(rdb)),
+	cache.WithStatsHandler(
+		stats.NewHandles(false,
+			stats.NewStatsLogger(cacheName),
+			pstats.NewPrometheus(cacheName),
+		),
+	),
+)
 ```
-> This example demonstrates how to integrate Prometheus metrics collection with jetcache-go using the jetcache-go-plugin. It shows how to simultaneously use both logging and Prometheus for statistics.
 
-## Encoding
+This setup exports metrics to Prometheus while keeping built-in log stats.
 
-TODO
+## Extending Beyond Official Plugins
+
+When you need non-official integrations:
+
+- Implement `remote.Remote` for custom remote stores.
+- Implement `local.Local` for custom local cache engines.
+- Implement `encoding.Codec` and register with `encoding.RegisterCodec(...)`.
+- Implement `stats.Handler` for custom observability backend.
+
+See:
+
+- [Embedded Components](Embedded.md)
+- [Configuration](Config.md)
