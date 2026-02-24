@@ -1,208 +1,193 @@
-<!-- TOC -->
-* [Cache 配置项说明](#cache-配置项说明)
-* [Cache 缓存实例创建](#cache-缓存实例创建)
-  * [示例1：创建二级缓存实例（Both）](#示例1创建二级缓存实例both)
-  * [示例2：创建仅本地缓存实例（Local）](#示例2创建仅本地缓存实例local)
-  * [示例3：创建仅远程缓存实例（Remote）](#示例3创建仅远程缓存实例remote)
-  * [示例4：创建缓存实例，并配置jetcache-go-plugin Prometheus 统计插件](#示例4创建缓存实例并配置jetcache-go-plugin-prometheus-统计插件)
-  * [示例5：创建缓存实例，并配置 `errNotFound` 防止缓存穿透](#示例5创建缓存实例并配置-errnotfound-防止缓存穿透)
-<!-- TOC -->
+# 配置项参考
 
-# Cache 配置项说明
+本文档定义 `cache.WithXxx(...)` 配置项与最小配置模式。
 
-| 配置项名称                      | 配置项类型                | 缺省值                  | 说明                                                                                                                                                |
-|----------------------------|----------------------|----------------------|---------------------------------------------------------------------------------------------------------------------------------------------------|
-| name                       | string               | default              | 缓存名称，用于日志标识和指标报告                                                                                                                                  |
-| remote                     | `remote.Remote` 接口   | nil                  | remote 是分布式缓存，例如 Redis。也可以自定义，实现`remote.Remote`接口即可                                                                                               |
-| local                      | `local.Local` 接口     | nil                  | local 是内存缓存，例如 FreeCache、TinyLFU。也可以自定义，实现`local.Local`接口即可                                                                                       |
-| codec                      | string               | msgpack              | value的编码和解码方法。默认为 "msgpack"。可选：`json` \| `msgpack` \| `sonic`，也可以自定义，实现`encoding.Codec`接口并注册即可                                                    | 
-| errNotFound                | error                | nil                  | 回源记录不存在时返回的错误，例：`gorm.ErrRecordNotFound`。用于防止缓存穿透（即缓存空对象）                                                                                         |
-| remoteExpiry               | `time.Duration`      | 1小时                  | 远程缓存 TTL，默认为 1 小时                                                                                                                                 |
-| notFoundExpiry             | `time.Duration`      | 1分钟                  | 缓存未命中时占位符缓存的过期时间。默认为 1 分钟                                                                                                                         |
-| offset                     | `time.Duration`      | (0,10]秒              | 缓存未命中时的过期时间抖动因子                                                                                                                                   |
-| refreshDuration            | `time.Duration`      | 0                    | 异步缓存刷新的间隔。默认为 0（禁用刷新）                                                                                                                             |
-| stopRefreshAfterLastAccess | `time.Duration`      | refreshDuration + 1秒 | 缓存停止刷新之前的持续时间（上次访问后）                                                                                                                              |
-| refreshConcurrency         | int                  | 4                    | 刷新缓存任务池的并发刷新的最大数量                                                                                                                                 |
-| statsDisabled              | bool                 | false                | 禁用缓存统计的标志                                                                                                                                         |
-| statsHandler               | `stats.Handler` 接口   | stats.NewStatsLogger | 指标统计收集器。默认内嵌实现了`log`统计，也可以使用[jetcache-go-plugin](https://github.com/mgtv-tech/jetcache-go-plugin) 的`Prometheus` 插件。或自定义实现，只要实现`stats.Handler`接口即可 |
-| sourceID                   | string               | 16位随机字符串             | 【缓存事件广播】缓存实例的唯一标识符                                                                                                                                |
-| syncLocal                  | bool                 | false                | 【缓存事件广播】启用同步本地缓存的事件（仅适用于 "Both" 缓存类型）                                                                                                             |
-| eventChBufSize             | int                  | 100                  | 【缓存事件广播】事件通道的缓冲区大小（默认为 100）                                                                                                                       |
-| eventHandler               | `func(event *Event)` | nil                  | 【缓存事件广播】处理本地缓存失效事件的函数                                                                                                                             |
-| separatorDisabled          | bool                 | false                | 禁用缓存键的分隔符。默认为false。如果为true，则缓存键不会使用分隔符。目前主要用于泛型接口的缓存key和ID拼接                                                                                      |
-| separator                  | string               | :                    | 缓存键的分隔符。默认为 ":"。目前主要用于泛型接口的缓存key和ID拼接                                                                                                             |
+## 配置矩阵
 
-# Cache 缓存实例创建
+| 配置项 | 类型 | 默认值 | 说明 |
+| --- | --- | --- | --- |
+| `WithName(name)` | `string` | `"default"` | 用于日志和指标标识。 |
+| `WithRemote(remote)` | `remote.Remote` | `nil` | 远程缓存后端。 |
+| `WithLocal(local)` | `local.Local` | `nil` | 本地缓存后端。 |
+| `WithCodec(codec)` | `string` | `"msgpack"` | 必须已注册。未注册会在 `cache.New(...)` 时 panic。 |
+| `WithErrNotFound(err)` | `error` | `nil` | 未找到哨兵错误，用于防穿透。 |
+| `WithRemoteExpiry(d)` | `time.Duration` | `1h` | 远程默认 TTL。 |
+| `WithNotFoundExpiry(d)` | `time.Duration` | `1m` | not-found 占位符 TTL。 |
+| `WithOffset(d)` | `time.Duration` | `notFoundExpiry/10`（上限 `10s`） | not-found 占位符 TTL 抖动。 |
+| `WithRefreshDuration(d)` | `time.Duration` | `0` | 刷新间隔。`0` 关闭，`(0,1s)` 修正为 `1s`。 |
+| `WithStopRefreshAfterLastAccess(d)` | `time.Duration` | `refreshDuration + 1s` | key 空闲后停止刷新。 |
+| `WithRefreshConcurrency(n)` | `int` | `4` | 刷新最大并发。 |
+| `WithStatsDisabled(b)` | `bool` | `false` | 关闭默认统计链。若同时传入自定义 `WithStatsHandler(...)`，由自定义处理器决定行为。 |
+| `WithStatsHandler(h)` | `stats.Handler` | `stats.NewHandles(...)` | 自定义统计处理链。 |
+| `WithSourceId(id)` | `string` | 随机 16 位 | 本地失效同步事件来源标识，用于消费侧忽略本实例事件。 |
+| `WithSyncLocal(b)` | `bool` | `false` | 开启本地失效事件发送（`both` 模式有效）。 |
+| `WithEventChBufSize(n)` | `int` | `100` | 事件通道缓冲区大小。 |
+| `WithEventHandler(fn)` | `func(event *cache.Event)` | `nil` | 事件消费回调。 |
+| `WithSeparatorDisabled(b)` | `bool` | `false` | 关闭泛型 key 分隔符。 |
+| `WithSeparator(sep)` | `string` | `":"` | 泛型 key 分隔符。 |
 
-## 示例1：创建二级缓存实例（Both）
+## 功能版本可用性
+
+- 泛型 `MGet` 回源函数 + pipeline 优化：`v1.1.0+`
+- 跨进程本地缓存失效事件（`WithSyncLocal`）：`v1.1.1+`
+
+## 拓扑模板
 
 ```go
-import (
-    "context"
-    "time"
+package main
 
-    "github.com/jinzhu/gorm"
-	"github.com/mgtv-tech/jetcache-go"
-    "github.com/mgtv-tech/jetcache-go/local"
-    "github.com/mgtv-tech/jetcache-go/remote"
-    "github.com/redis/go-redis/v9"
+import (
+	"time"
+
+	cache "github.com/mgtv-tech/jetcache-go"
+	"github.com/mgtv-tech/jetcache-go/local"
+	"github.com/mgtv-tech/jetcache-go/remote"
+	"github.com/redis/go-redis/v9"
 )
-ring := redis.NewRing(&redis.RingOptions{
-    Addrs: map[string]string{
-        "localhost": ":6379",
-    },
+
+func newLocal() cache.Cache {
+	return cache.New(
+		cache.WithName("local-cache"),
+		cache.WithLocal(local.NewTinyLFU(100_000, time.Minute)),
+	)
+}
+
+func newRemote(rdb *redis.Client) cache.Cache {
+	return cache.New(
+		cache.WithName("remote-cache"),
+		cache.WithRemote(remote.NewGoRedisV9Adapter(rdb)),
+		cache.WithRemoteExpiry(30*time.Minute),
+	)
+}
+
+func newBoth(rdb *redis.Client) cache.Cache {
+	return cache.New(
+		cache.WithName("both-cache"),
+		cache.WithLocal(local.NewTinyLFU(100_000, time.Minute)),
+		cache.WithRemote(remote.NewGoRedisV9Adapter(rdb)),
+		cache.WithRemoteExpiry(30*time.Minute),
+	)
+}
+
+func main() {
+	rdb := redis.NewClient(&redis.Options{Addr: "127.0.0.1:6379"})
+	c := newBoth(rdb)
+	defer c.Close()
+}
+```
+
+## 场景增量配置
+
+## 防穿透
+
+```go
+cache.WithErrNotFound(sql.ErrNoRows)
+cache.WithNotFoundExpiry(45 * time.Second)
+```
+
+## 热点 key 自动刷新
+
+```go
+cache.WithRefreshDuration(time.Minute)
+cache.WithStopRefreshAfterLastAccess(15 * time.Minute)
+cache.WithRefreshConcurrency(8)
+```
+
+调用时按 key 开启：
+
+```go
+cache.Refresh(true)
+```
+
+建议：`Refresh(true)` 与 `Do(...)` 配合使用，确保刷新任务可以持续回源更新最新值。
+
+## 多统计处理器（Log + Prometheus）
+
+```go
+cache.WithStatsHandler(stats.NewHandles(false,
+	stats.NewStatsLogger(cacheName),
+	pstats.NewPrometheus(cacheName),
+))
+```
+
+当配置 `WithStatsHandler(...)` 时，`WithStatsDisabled(...)` 不会覆盖你自定义处理器的实现逻辑。
+
+## 本地失效事件同步
+
+```go
+cache.WithSyncLocal(true)
+cache.WithSourceId("service-a-node-1")
+cache.WithEventHandler(func(event *cache.Event) {
+	// 发布/消费失效事件
 })
-
-// 创建二级缓存实例
-mycache := cache.New(cache.WithName("any"),
-    cache.WithRemote(remote.NewGoRedisV9Adapter(ring)),
-    cache.WithLocal(local.NewTinyLFU(10000, time.Minute)), // 本地缓存过期时间统一为 1 分钟
-    cache.WithErrNotFound(gorm.ErrRecordNotFound))
-
-obj := struct {
-    Name string
-    Age  int
-}{Name: "John Doe", Age: 30}
-// 设置缓存，其中远程缓存过期时间 TTL 为 1 小时
-err := mycache.Set(context.Background(), "mykey", cache.Value(&obj), cache.TTL(time.Hour))
-if err != nil {
-    // 错误处理
-}
 ```
 
-## 示例2：创建仅本地缓存实例（Local）
+## SourceID 的作用与生成建议
 
-```go
-import (
-    "context"
-    "time"
+开启 `WithSyncLocal(true)` 后，每条失效事件都会带上 `cache.Event.SourceID`。
 
-    "github.com/jinzhu/gorm"
-	"github.com/mgtv-tech/jetcache-go"
-    "github.com/mgtv-tech/jetcache-go/local"
-)
-ring := redis.NewRing(&redis.RingOptions{
-    Addrs: map[string]string{
-        "localhost": ":6379",
-    },
-})
+`SourceID` 主要用于：
 
-// 创建仅本地缓存实例
-mycache := cache.New(cache.WithName("any"),
-    cache.WithLocal(local.NewTinyLFU(10000, time.Minute)),
-    cache.WithErrNotFound(gorm.ErrRecordNotFound))
+- 标识事件由哪个实例发出，
+- 在消费侧忽略本实例事件（`event.SourceID == mySourceID`），
+- 避免本地失效事件回环，便于排查问题。
 
-obj := struct {
-    Name string
-    Age  int
-}{Name: "John Doe", Age: 30}
+生成建议：
 
-err := mycache.Set(context.Background(), "mykey", cache.Value(&obj))
-if err != nil {
-    // 错误处理
-}
+- 对每个运行中的缓存实例保持唯一；
+- 在单次进程生命周期内保持稳定；
+- 建议可读，便于日志检索和定位。
+
+推荐格式：
+
+```text
+<service>-<env>-<instanceID>-<bootNonce>
 ```
 
-## 示例3：创建仅远程缓存实例（Remote）
+其中：
+
+- `instanceID`：Pod UID、VM ID 或主机标识；
+- `bootNonce`：进程启动时的随机后缀，避免快速重启冲突。
+
+若平台侧拿不到稳定实例 ID，可用如下兜底函数：
 
 ```go
+package main
+
 import (
-    "context"
-    "time"
-
-    "github.com/jinzhu/gorm"
-	"github.com/mgtv-tech/jetcache-go"
-    "github.com/mgtv-tech/jetcache-go/remote"
-    "github.com/redis/go-redis/v9"
-)
-ring := redis.NewRing(&redis.RingOptions{
-    Addrs: map[string]string{
-        "localhost": ":6379",
-    },
-})
-
-// 创建仅远程缓存实例
-mycache := cache.New(cache.WithName("any"),
-    cache.WithRemote(remote.NewGoRedisV9Adapter(ring)),
-    cache.WithErrNotFound(gorm.ErrRecordNotFound))
-
-obj := struct {
-    Name string
-    Age  int
-}{Name: "John Doe", Age: 30}
-
-err := mycache.Set(context.Background(), "mykey", cache.Value(&obj), cache.TTL(time.Hour))
-if err != nil {
-    // 错误处理
-}
-```
-
-## 示例4：创建缓存实例，并配置[jetcache-go-plugin](https://github.com/mgtv-tech/jetcache-go-plugin) Prometheus 统计插件
-
-```go
-import (
-    "context"
-    "time"
-
-    "github.com/mgtv-tech/jetcache-go"
-    "github.com/mgtv-tech/jetcache-go/remote"
-    "github.com/redis/go-redis/v9"
-    pstats "github.com/mgtv-tech/jetcache-go-plugin/stats"
-    "github.com/mgtv-tech/jetcache-go/stats"
-)
-
-mycache := cache.New(cache.WithName("any"),
-	cache.WithRemote(remote.NewGoRedisV9Adapter(ring)),
-    cache.WithStatsHandler(
-        stats.NewHandles(false,
-            stats.NewStatsLogger(cacheName), 
-            pstats.NewPrometheus(cacheName))))
-
-obj := struct {
-    Name string
-    Age  int
-}{Name: "John Doe", Age: 30}
-
-err := mycache.Set(context.Background(), "mykey", cache.Value(&obj), cache.TTL(time.Hour))
-if err != nil {
-    // 错误处理
-}
-```
-> 示例4 同时集成了 `Log` 和 `Prometheus` 统计。效果见：[Stat](/docs/CN/Stat.md)
-
-## 示例5：创建缓存实例，并配置 `errNotFound` 防止缓存穿透
-
-```go
-import (
-    "context"
+	"crypto/rand"
 	"fmt"
-    "time"
-
-    "github.com/jinzhu/gorm"
-	"github.com/mgtv-tech/jetcache-go"
+	"os"
 )
-ring := redis.NewRing(&redis.RingOptions{
-    Addrs: map[string]string{
-        "localhost": ":6379",
-    },
-})
 
-// 创建缓存实例，并配置 errNotFound 防止缓存穿透
-mycache := cache.New(cache.WithName("any"),
-	// ...
-    cache.WithErrNotFound(gorm.ErrRecordNotFound))
-
-var value string
-err := mycache.Once(ctx, key, Value(&value), Do(func(context.Context) (any, error) {
-    return nil, gorm.ErrRecordNotFound
-}))
-fmt.Println(err)
-
-// Output: record not found
+func buildSourceID(service, env string) string {
+	host, _ := os.Hostname()
+	nonce := make([]byte, 4)
+	_, _ = rand.Read(nonce)
+	return fmt.Sprintf("%s-%s-%s-%d-%x", service, env, host, os.Getpid(), nonce)
+}
 ```
 
-`jetcache-go` 采取轻量级的 \[缓存空对象\] 方式来解决缓存穿透问题：
+## 选型决策图
 
-- 创建cache实例时，指定未找到错误。例如：gorm.ErrRecordNotFound、redis.Nil
-- 查询如果遇到未找到错误，直接用*号作为缓存值缓存
-- 返回的时候，判断缓存值是否为*号，如果是，则返回对应的未找到错误
+```mermaid
+flowchart TD
+    A[需要缓存?] --> B{是否需要跨实例共享?}
+    B -- 否 --> C[local]
+    B -- 是 --> D{是否需要极低读延迟?}
+    D -- 否 --> E[remote]
+    D -- 是 --> F[both]
+    F --> G[开启 not-found 防护]
+    F --> H[开启统计]
+    F --> I{热点 key 少且回源贵?}
+    I -- 是 --> J[开启刷新]
+    I -- 否 --> K[保持关闭刷新]
+```
+
+## 校验清单
+
+- 至少配置一个后端（`local` 或 `remote`）。
+- 生产环境显式配置 `WithName(...)`。
+- `WithErrNotFound(...)` 与数据源未找到错误保持一致。
+- 开启刷新时，服务退出路径调用 `Close()`，且每个实例只调用一次。
+- 开启 `WithSyncLocal(true)` 时，务必配置 `WithEventHandler(...)`。
